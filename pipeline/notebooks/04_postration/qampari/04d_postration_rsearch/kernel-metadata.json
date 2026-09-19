@@ -1,0 +1,18 @@
+{
+  "id": "mehedikhan72/04d-r-search-postration-qampari",
+  "title": "04d r search postration qampari",
+  "code_file": "04d_postration_rsearch.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [
+    "mehedikhan72/rag-faith-qampari-adversarial"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": []
+}

@@ -1,0 +1,18 @@
+{
+  "id": "mehedikhan72/04b-search-r1-postration-noplant-qampari",
+  "title": "04b search r1 postration noplant qampari",
+  "code_file": "04b_postration_searchr1.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [
+    "mehedikhan72/rag-faith-qampari-adv-noplant"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": []
+}

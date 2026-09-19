@@ -1,0 +1,18 @@
+{
+  "id": "mehedikhan72/02d-r-search-gen-ragtruth",
+  "title": "02d r search gen ragtruth",
+  "code_file": "02d_generation_rsearch.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [
+    "mehedikhan72/rag-faith-ragtruth-retrieval"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": []
+}

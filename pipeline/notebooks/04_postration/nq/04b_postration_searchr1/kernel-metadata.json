@@ -1,0 +1,18 @@
+{
+  "id": "mehedikhan72/04b-post-rationalization-search-r1",
+  "title": "04b Post-rationalization Search-R1",
+  "code_file": "04b_postration_searchr1.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [
+    "mehedikhan72/rag-faithfulness-adversarial-data"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": []
+}

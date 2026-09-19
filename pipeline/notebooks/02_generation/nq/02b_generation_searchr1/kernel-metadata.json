@@ -1,0 +1,18 @@
+{
+  "id": "mehedikhan72/02b-generation-search-r1-rl-arm",
+  "title": "02b - Generation: Search-R1 (RL arm)",
+  "code_file": "02b_generation_searchr1.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [
+    "mehedikhan72/rag-faithfulness-retrieval-data"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": []
+}

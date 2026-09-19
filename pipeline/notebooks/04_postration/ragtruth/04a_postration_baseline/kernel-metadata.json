@@ -1,0 +1,18 @@
+{
+  "id": "mehedikhan72/04a-baseline-postration-ragtruth",
+  "title": "04a baseline postration ragtruth",
+  "code_file": "04a_postration_baseline.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [
+    "mehedikhan72/rag-faith-ragtruth-adversarial"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": []
+}

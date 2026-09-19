@@ -1,0 +1,18 @@
+{
+  "id": "mehedikhan72/04d-r-search-postration-noplant-nq",
+  "title": "04d r search postration noplant nq",
+  "code_file": "04d_postration_rsearch.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [
+    "mehedikhan72/rag-faith-nq-adversarial-noplant"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": []
+}

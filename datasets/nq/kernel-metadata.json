@@ -1,0 +1,19 @@
+{
+  "id": "mehedikhan72/01-retrieval-pipeline-kilt-nq-wallat-style",
+  "id_no": 129644382,
+  "title": "01 - Retrieval Pipeline (KILT-NQ, Wallat-style)",
+  "code_file": "01_build_nq.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [
+    "mehedikhan72/rag-faithfulness-scan-checkpoint"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": []
+}

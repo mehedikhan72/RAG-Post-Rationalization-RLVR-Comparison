@@ -1,0 +1,18 @@
+{
+  "id": "mehedikhan72/04c-post-rationalization-research",
+  "title": "04c Post-rationalization ReSearch",
+  "code_file": "04c_postration_research.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [
+    "mehedikhan72/rag-faithfulness-adversarial-data"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": []
+}

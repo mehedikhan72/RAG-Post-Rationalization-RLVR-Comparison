@@ -1,0 +1,18 @@
+{
+  "id": "mehedikhan72/02a-generation-baseline-qwen2-5-7b-non-rl",
+  "title": "02a - Generation: Baseline (Qwen2.5-7B, non-RL)",
+  "code_file": "02a_generation_baseline.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [
+    "mehedikhan72/rag-faithfulness-retrieval-data"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": []
+}
