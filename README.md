@@ -1,7 +1,7 @@
 # Attributable Post-Rationalization in RAG Citations
 
-Code and data for *Attributable Post-Rationalization in RAG Citations: A Controlled Reproduction
-and an RLVR Comparison*.
+Code and data for [*Attributable Post-Rationalization in RAG Citations: A Controlled Reproduction
+and an RLVR Comparison*](https://arxiv.org/abs/2609.23053).
 
 A RAG model can cite a passage it did not use. We measure this with the planting probe of
 Wallat et al. (2025). We take four words from a sentence the model wrote, append them to a
@@ -98,8 +98,25 @@ this is in `reports/TECHNICAL_NOTES.md` §2. Kaggle's GPUs have changed since th
 
 ## Citation
 
-If you use this code, please cite the paper (citation to be added on publication) and the
-original probe:
+If you use this code or data, please cite:
+
+> Mehedi Khan and Md. Shariful Islam Bhuyan. 2026. Attributable Post-Rationalization in RAG
+> Citations: A Controlled Reproduction and an RLVR Comparison. arXiv:2609.23053.
+
+```bibtex
+@misc{khan2026attributable,
+  title         = {Attributable Post-Rationalization in {RAG} Citations: A Controlled Reproduction and an {RLVR} Comparison},
+  author        = {Khan, Mehedi and Bhuyan, Md. Shariful Islam},
+  year          = {2026},
+  eprint        = {2609.23053},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.CL},
+  doi           = {10.48550/arXiv.2609.23053},
+  url           = {https://arxiv.org/abs/2609.23053}
+}
+```
+
+The planting probe is from:
 
 > Jonas Wallat, Maria Heuss, Maarten de Rijke, and Avishek Anand. 2025. Correctness is not
 > Faithfulness in Retrieval Augmented Generation Attributions. In *Proceedings of ICTIR 2025*.
