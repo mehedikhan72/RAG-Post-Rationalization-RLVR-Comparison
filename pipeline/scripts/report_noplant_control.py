@@ -146,7 +146,7 @@ def render(dataset):
     body = f"""# No-planting control — {meta['label']}
 
 **Work item:** W2 (project brief §9.4 limitation A3, §10 W2)
-**Pre-registration:** fixed in writing, before this was scored
+**Pre-specified:** fixed in writing, before this was scored
 **Method + verification:** `reports/TECHNICAL_NOTES.md` §4–5
 **Scorer:** `pipeline/05b_score_noplant_control.py` (outcome `cite_aligned`, cluster bootstrap
 on `question_id`, {aligned['n_boot']} replicates, seed 42)
@@ -207,7 +207,7 @@ question ids across the two arms, Holm across the three contrasts within this da
 ## 6. Unaligned rates and the `cite_anywhere` sensitivity
 
 Between-arm spread in the planted `unaligned` rate on `rel_uncited`: **{pct(spread)}**
-({'above' if spread > 0.05 else 'below'} the pre-registered 5pp trigger, so the
+({'above' if spread > 0.05 else 'below'} the pre-specified 5pp trigger, so the
 `cite_anywhere` recomputation below is {'required' if spread > 0.05 else 'informational'}).
 
 {cell_rows(anywhere, 'cite_anywhere')}

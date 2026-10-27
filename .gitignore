@@ -6,3 +6,12 @@ __pycache__/
 runs
 runs/*
 runs/**
+# Working notes, paper sources and PDFs: kept locally, not published
+v2/
+latex-src/
+*.pdf
+CLAUDE.md
+
+# Generated outputs: regenerate with the scripts (see README)
+results/
+reports/*/

@@ -39,6 +39,7 @@ ARM_SOURCES = {
     "search_r1": ("02b_gen", "generations_search_r1.json"),
     "research": ("02c_gen", "generations_research.json"),
     "rsearch": ("02d_gen", "generations_rsearch.json"),
+    "search_sft": ("02e_gen", "generations_search_sft.json"),
 }
 
 # Only these two have control-context == clean-context. Kept as an explicit list rather than
@@ -74,6 +75,8 @@ def derive(dataset):
 
     summary = {}
     for arm, (nb_dir, fname) in ARM_SOURCES.items():
+        if arm not in config.ARM_ORDER:  # dropped at the go/no-go gate (config.DROPPED_ARMS)
+            continue
         gen_path = config.runs_dir(dataset, "generation", nb_dir, "generation_data", fname)
         if not gen_path.exists():
             raise SystemExit(f"missing {gen_path}")

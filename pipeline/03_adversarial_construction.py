@@ -28,6 +28,7 @@ Output per arm: runs/<dataset>/adversarial/<arm>/post_ration_{random,rel_uncited
 plus runs/<dataset>/adversarial/coverage_report.json.
 
     python pipeline/03_adversarial_construction.py --dataset nq
+    python pipeline/03_adversarial_construction.py --dataset nq --arms search_sft
 """
 
 import argparse
@@ -50,6 +51,7 @@ ARM_SOURCES = {
     "search_r1": ("02b_gen", "generations_search_r1.json"),
     "research": ("02c_gen", "generations_research.json"),
     "rsearch": ("02d_gen", "generations_rsearch.json"),
+    "search_sft": ("02e_gen", "generations_search_sft.json"),
 }
 
 
@@ -263,9 +265,14 @@ def process_arm(arm_name, records, chunks_lookup, cov):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     config.add_dataset_arg(ap)
+    ap.add_argument("--arms", nargs="+", default=None, choices=list(ARM_SOURCES),
+                    help="build only these arms, leaving every other arm's archived files "
+                         "and coverage entry untouched (adding arms to a finished run)")
     args = ap.parse_args()
 
     chunks_path, out_dir, arms = resolve_paths(args.dataset)
+    if args.arms:
+        arms = {a: p for a, p in arms.items() if a in args.arms}
     if not chunks_path.exists():
         raise SystemExit(f"missing {chunks_path} - run the 0x builder notebook first")
 
@@ -279,6 +286,11 @@ def main():
             print(f"{arm_name:10} MISSING {path} - skipped")
             continue
 
+        # With --arms every arm gets a fresh seed-42 stream -- the stream the first arm
+        # (baseline) received in the original all-arms run -- so an added arm's draws do not
+        # depend on which other arms happened to be built in the same process.
+        if args.arms:
+            random.seed(42)
         cov = Counter()
         results = process_arm(arm_name, load_json(path), chunks_lookup, cov)
         coverage[arm_name] = dict(cov)
@@ -296,7 +308,10 @@ def main():
             f"rel_uncited={len(results['rel_uncited']):4} cited_other={len(results['cited_other']):4}"
         )
 
-    write_json(out_dir / "coverage_report.json", coverage)
+    report = out_dir / "coverage_report.json"
+    if args.arms and report.exists():
+        coverage = {**load_json(report), **coverage}
+    write_json(report, coverage)
     print(f"\nCoverage -> {out_dir / 'coverage_report.json'}")
 
 

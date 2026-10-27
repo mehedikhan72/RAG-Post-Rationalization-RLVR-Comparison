@@ -1,0 +1,20 @@
+{
+  "id": "mehedikhan72/02e-search-sft-gen-ragtruth",
+  "title": "02e search sft gen ragtruth",
+  "code_file": "02e_generation_searchsft.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:37c64f7dd9c54116ecd1bcc88817c5469b88387388fade02bfa8bf3fc647d461",
+  "machine_shape": "NvidiaTeslaT4",
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [
+    "mehedikhan72/rag-faith-ragtruth-retrieval"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": []
+}

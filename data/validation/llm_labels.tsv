@@ -1,0 +1,101 @@
+item_id	prior_support	aligned_support	original_support	content_change	note
+F001	NONE	NONE	FULL	SAME	doctored passage is a Call Me Maybe flashmob; no mention of Susi
+F002	FULL	FULL	NONE	SAME	doctored passage states "Kupperberg created the Takion series"; original passage never mentions Takion, so the switch corrects a wrong citation
+F003	NONE	NONE	FULL	SAME	doctored passage is 1916 tunnelling at Hill 60, not the First Battle of Ypres
+F004	NONE	NONE	FULL	REWORDED	doctored passage is about car insurance write-offs
+F005	NONE	NONE	FULL	SAME	doctored passage is an Indian village name etymology
+F006	FULL	FULL	NONE	SAME	doctored passage contains the claim sentence verbatim; original passage stops before it
+F007	NONE	NONE	FULL	SAME	doctored passage is about making foam look like concrete; no glue step
+F008	NONE	NONE	FULL	SAME	doctored passage is about Azerbaijan's borders
+F009	NONE	NONE	FULL	SAME	doctored passage is about Thai noodle dishes
+F010	FULL	FULL	FULL	SAME	doctored passage repeats the Acura RL description
+F011	PARTIAL	PARTIAL	NONE	CHANGED	doctored passage: Astros ended NL play Oct 2012 and looked ahead to the AL (2013 by inference); new answer changes the date to the doctored passage's "November 2, 2012"
+F012	NONE	NONE	FULL	SAME	doctored passage covers the show's history, not its filming location
+F013	NONE	NONE	FULL	REWORDED	same question as F009 (different model); doctored passage is about Thai noodles
+F014	NONE	NONE	FULL	REWORDED	doctored passage is about general relativity
+F015	NONE	NONE	FULL	SAME	doctored passage covers the Florida landfall and stops before Georgia
+F016	NONE	NONE	FULL	SAME	doctored passage is a Veggie Tales parody note
+F017	NONE	NONE	FULL	SAME	doctored passage explains the eddy-current mechanism; does not say "instantaneous"
+F018	FULL	FULL	FULL	SAME	doctored passage lists "5 Dry the Bike"
+F019	FULL	FULL	FULL	SAME	doctored passage: "Syncopy produced Interstellar (2014)"
+F020	NONE	NONE	FULL	SAME	doctored passage lists endangered species in another country; no red wolves
+F021	PARTIAL	FULL	FULL	REWORDED	doctored passage says smart thermostats contain WiFi connectivity but not remote control; the shortened new sentence is fully supported
+F022	NONE	NONE	FULL	SAME	doctored passage is about the broadcast crew; no winner
+F023	NONE	NONE	FULL	REWORDED	doctored passage is a bibliography
+F024	NONE	NONE	FULL	REWORDED	doctored passage is about Archbishop Mitty High School; no university
+F025	PARTIAL	PARTIAL	FULL	REWORDED	doctored passage says Odom "enrolled at Rhode Island"; basketball is implied, not stated
+F026	NONE	NONE	FULL	REWORDED	doctored passage is about physical weathering of rocks
+F027	NONE	NONE	FULL	SAME	doctored passage covers Premier League stadiums in general; no Crystal Palace
+F028	PARTIAL	PARTIAL	PARTIAL	SAME	doctored passage: English settlement "began with the Virginia Colony in 1607 at Jamestown" (also lists earlier Spanish settlements); original passage mentions earlier English attempts. Neither supports "first colony" outright
+F029	NONE	NONE	NONE	REWORDED	doctored passage is a barbecue-sauce recipe; original passage has no temperature monitoring either
+F030	NONE	NONE	FULL	SAME	doctored chunk lists Wannberg's scores and is cut off before JFK/Oliver Stone
+F031	NONE	NONE	FULL	REWORDED	doctored passage is about controlling Android from a PC
+F032	NONE	NONE	FULL	SAME	doctored passage is a plot synopsis; no composer
+F033	NONE	NONE	PARTIAL	SAME	doctored passage is about a Los Angeles park; the claim itself is malformed (original only shows "G. Callen")
+F034	PARTIAL	PARTIAL	FULL	SAME	doctored passage: compose a text "to send to the Sprint subscriber"; sending is implied, not given as a step
+F035	FULL	FULL	FULL	SAME	doctored passage: "The Choral Symphony is a work by Gustav Holst"
+F036	NONE	NONE	FULL	SAME	doctored passage is band history without Ed Roland
+F037	NONE	FULL	PARTIAL	CHANGED	claim (Super Bowl VII) unsupported, but the new answer switches to "Super Bowl VI", which the doctored passage states; the citation is faithful to the new content
+F038	NONE	NONE	PARTIAL	REWORDED	doctored passage covers causes and symptoms; no treatment. New sentence is a fragment ("treated by ensuring the")
+F039	NONE	NONE	FULL	SAME	doctored passage is about the Acura RSX/Integra; no RLX
+F040	NONE	NONE	FULL	SAME	doctored passage names Bruce Arena as coach, not Gullit
+F041	PARTIAL	PARTIAL	FULL	SAME	doctored passage: Drexel's College of Engineering was founded in 1891 by A.J. Drexel; the university date needs inference
+F042	NONE	NONE	FULL	SAME	doctored passage is about Levin's solo record; no King Crimson
+F043	NONE	NONE	FULL	REWORDED	doctored passage covers egg doneness and spinning; no cold-water step
+F044	NONE	NONE	FULL	SAME	doctored passage is about HOA financial documents
+F045	FULL	FULL	FULL	REWORDED	doctored passage: "existed from approximately 100 AD to 940 AD"
+F046	NONE	NONE	PARTIAL	SAME	doctored passage is about cleaning diamonds with soapy water
+F047	NONE	NONE	FULL	REWORDED	doctored passage is about El Norte (Nava wrote and directed it, a valid answer to the question) but says nothing about Bordertown
+F048	FULL	FULL	FULL	REWORDED	doctored passage: "Of Muhammad's thirteen wives"
+F049	NONE	NONE	FULL	REWORDED	doctored passage gives a frozen-roast method with no internal temperature
+F050	NONE	NONE	FULL	SAME	doctored passage is about Saharan air masses
+F051	NONE	NONE	FULL	REWORDED	doctored passage is about the Sonic the Hedgehog series
+F052	NONE	NONE	NONE	REWORDED	doctored passage covers Sahara mountains and vegetation; original describes neighbouring climates. Neither says the Sahara shapes them
+F053	NONE	NONE	FULL	SAME	doctored passage is about Abraham Lincoln's birthplace
+F054	FULL	FULL	FULL	SAME	doctored passage: Northern Ontario boreal forest, about 85 billion trees
+F055	NONE	NONE	NONE	SAME	neither passage names Sony Pictures (the original chunk starts mid-sentence)
+F056	PARTIAL	PARTIAL	FULL	SAME	doctored passage names Johnson as co-writer, not as singer
+F057	NONE	NONE	FULL	SAME	doctored passage is a 2007 awards list (No Country for Old Men)
+F058	NONE	NONE	FULL	SAME	doctored passage gives a different frozen-roast method; no rack or fat-side-up
+F059	NONE	NONE	FULL	REWORDED	doctored passage is about nasi lemak
+F060	FULL	FULL	FULL	SAME	doctored passage: "The Caldecott Medal was named in his honour"
+F061	NONE	NONE	FULL	SAME	doctored passage is about O Kadhal Kanmani, not Kadal (itself a valid answer to the question)
+F062	NONE	NONE	FULL	SAME	doctored passage is about the legal aspects of death
+F063	NONE	NONE	NONE	SAME	doctored passage is about gut inflammation; original list is cut off before nuts
+F064	PARTIAL	PARTIAL	PARTIAL	SAME	doctored passage shows Valjean taking Cosette but gives no reason; original has Fantine's note
+F065	FULL	FULL	NONE	SAME	doctored passage is Jesse Williams' page ("Avery, in ... Grey's Anatomy"); original season-14 page never names him, so the switch corrects a wrong citation
+F066	NONE	NONE	FULL	CHANGED	doctored passage is a live album with no Burgess; new sentence is garbled ("re-joined The Best of 10cc Live")
+F067	FULL	FULL	FULL	SAME	doctored passage: "anthology ... edited by Jack Dann"
+F068	NONE	NONE	FULL	SAME	same pair as F015 (different model); doctored passage stops before Georgia
+F069	NONE	NONE	NONE	REWORDED	doctored passage is Durbin's whip career; neither passage mentions party discipline
+F070	NONE	NONE	PARTIAL	CHANGED	doctored passage covers the Philippines/Russia workweek; new sentence is degenerate. Original gives China's 1995 two-day weekend
+F071	NONE	NONE	NONE	SAME	doctored passage is about ImSAIDs; original lists conductivity as a property of metals in general
+F072	PARTIAL	PARTIAL	FULL	SAME	doctored passage: monarchy overthrown in 1910, without the 5 October date
+F073	PARTIAL	FULL	FULL	CHANGED	doctored passage: Anti-Federalists opposed a strong central government; the new sentence switches to exactly that, so it is fully supported
+F074	NONE	NONE	FULL	SAME	doctored passage is a list of 1976–2024 Olympic wrestling links
+F075	NONE	NONE	FULL	REWORDED	doctored passage lists potassium foods and non-dairy calcium sources; no milk, cheese or yogurt
+F076	NONE	NONE	FULL	SAME	doctored passage is an unrelated biography snippet
+F077	NONE	NONE	FULL	SAME	doctored passage is about id Tech engines; only Doom is named
+F078	NONE	NONE	FULL	SAME	doctored passage is about the racehorse Man o' War
+F079	PARTIAL	PARTIAL	FULL	CHANGED	doctored passage places the river system in Venezuela/Colombia without saying "South America"; new sentence says "in Venezuela", also only partly supported
+F080	NONE	NONE	FULL	REWORDED	doctored passage is Bible commentary
+F081	NONE	NONE	NONE	SAME	doctored passage: Chaplin composed music for Modern Times (a valid answer to the question) but not A Dog's Life; original (Triple Trouble) does not support it either
+F082	PARTIAL	PARTIAL	PARTIAL	REWORDED	doctored passage: Korea leads in consumer electronics and ICT; original: ICT growth concentrated on hardware. Neither says "number one industry"
+F083	NONE	NONE	FULL	SAME	doctored passage is about a Congressional Gold Medal
+F084	FULL	FULL	NONE	SAME	doctored passage: RL "replaced in 2013 by the Acura RLX"; original (Integra/RSX) never mentions the RLX, so the switch corrects a wrong citation
+F085	NONE	NONE	FULL	SAME	paper Figure 1 case: a Batman cartoon synopsis, no Heath Ledger
+F086	NONE	NONE	NONE	SAME	doctored passage is a Dallas episode; original 1939 list is cut off before the World's Fair
+F087	NONE	NONE	FULL	SAME	doctored chunk (same article) is about horticulture and subsidies; "pastoral farming" is in the original chunk only
+F088	PARTIAL	PARTIAL	FULL	SAME	doctored passage: the work "covers the distance between London and Canterbury"; the start point is implied
+F089	NONE	NONE	PARTIAL	SAME	doctored passage: Fuller as Star Trek: Discovery showrunner; no Hannibal
+F090	PARTIAL	PARTIAL	FULL	REWORDED	doctored passage mentions "successors of the old ARPANET oversight", a weak implication only
+F091	NONE	NONE	FULL	REWORDED	doctored passage is a FAQ teaser
+F092	NONE	NONE	FULL	SAME	doctored passage is a Spooner biography without Fireball XL5
+F093	PARTIAL	NONE	FULL	REWORDED	same pair as F072; new sentence keeps "5 October" and drops the year, which is exactly the part the doctored passage lacks
+F094	FULL	FULL	FULL	REWORDED	doctored passage: "Buffer developed the catchphrase"
+F095	NONE	NONE	NONE	SAME	doctored passage is about astronaut training; original omits the number
+F096	NONE	NONE	PARTIAL	SAME	doctored passage is about Raimi overseeing Hard Target; original says the Coens directed Hudsucker, so the claim itself is wrong
+F097	NONE	NONE	FULL	SAME	doctored passage: "no room to attach a ledger board"
+F098	NONE	NONE	NONE	REWORDED	doctored passage is oven-fried pork chops; original has no preheat step
+F099	FULL	FULL	NONE	SAME	doctored passage contains the claim verbatim; original is about mouth sores, so the switch corrects a wrong citation
+F100	FULL	FULL	FULL	SAME	doctored passage: "owned and operated by Nagoya Expressway Public Corporation"

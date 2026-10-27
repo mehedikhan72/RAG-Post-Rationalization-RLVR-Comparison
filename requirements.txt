@@ -1,0 +1,4 @@
+# Local stages (span planting, scoring, reports) use only the Python standard library (3.10+).
+# The Kaggle CLI pushes and pulls the GPU notebooks; 2.x is required for the docker_image and
+# machine_shape fields in kernel-metadata.json.
+kaggle>=2.2.4

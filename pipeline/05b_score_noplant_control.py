@@ -10,7 +10,7 @@ scores the condition that changes only the first, so the second can be attribute
 and, for RQ1, the difference-in-differences of that against the baseline arm.
 
 --------------------------------------------------------------------------------------
-PRE-REGISTERED. Rule and analysis plan fixed in writing before this was first run.
+PRE-SPECIFIED. Rule and analysis plan fixed in writing before this was first run.
 Results and deviations: reports/PROJECT_STATE.md; method: reports/TECHNICAL_NOTES.md.
 --------------------------------------------------------------------------------------
 
@@ -159,6 +159,10 @@ def load_both(dataset):
 
 def pair_cells(planted, control):
     """Cells where both conditions exist, in (variant, arm) report order."""
+    # An arm missing from ARM_ORDER would otherwise be dropped from every table without a word.
+    unknown = sorted({a for a, _ in list(planted) + list(control)} - set(ARM_ORDER))
+    if unknown:
+        raise SystemExit(f"arm(s) {unknown} have records but are not in config.ARM_ORDER")
     out = []
     for variant in config.VARIANTS:
         for arm in ARM_ORDER:
@@ -291,22 +295,31 @@ def analyse(dataset, key="cite_aligned", n_boot=N_BOOT):
             "unaligned_control": sum(1 for r in c if r["unaligned"]) / max(len(c), 1),
         }
 
+    # One Holm family per entry in config.CONTRAST_FAMILIES. Family A (RL vs baseline) also
+    # stays under the original "did" key, so earlier readers of the summary files still work.
     have = {(a, v) for a, v, _, _ in cells}
-    for variant in config.VARIANTS:
-        if (BASELINE_ARM, variant) not in have:
-            continue
-        bp, bc = planted[(BASELINE_ARM, variant)], control[(BASELINE_ARM, variant)]
-        rows, pvals = [], []
-        for arm in ARM_ORDER:
-            if arm == BASELINE_ARM or (arm, variant) not in have:
+    result["did_families"] = {}
+    for fam, (ref, arms) in config.CONTRAST_FAMILIES.items():
+        fam_out = {}
+        for variant in config.VARIANTS:
+            if (ref, variant) not in have:
                 continue
-            d = bootstrap_did(planted[(arm, variant)], control[(arm, variant)],
-                              bp, bc, key, n_boot)
-            rows.append({"arm": arm, **d})
-            pvals.append(d["p"])
-        for row, adj in zip(rows, holm(pvals)):
-            row["p_holm"] = adj
-        result["did"][variant] = rows
+            bp, bc = planted[(ref, variant)], control[(ref, variant)]
+            rows, pvals = [], []
+            for arm in arms:
+                if (arm, variant) not in have:
+                    continue
+                d = bootstrap_did(planted[(arm, variant)], control[(arm, variant)],
+                                  bp, bc, key, n_boot)
+                rows.append({"arm": arm, "ref": ref, **d})
+                pvals.append(d["p"])
+            for row, adj in zip(rows, holm(pvals)):
+                row["p_holm"] = adj
+            if rows:
+                fam_out[variant] = rows
+        result["did_families"][fam] = fam_out
+    result["did"] = {v: [{k: x for k, x in r.items() if k != "ref"} for r in rows]
+                     for v, rows in result["did_families"]["A"].items()}
 
     # Attrition and the outcome's sanity fields, per arm per condition.
     for cond, cellmap in (("planted", planted), ("control", control)):
@@ -371,17 +384,21 @@ def print_analysis(res):
         if printed:
             print()
 
-    print("=" * 104)
-    print("DIFFERENCE-IN-DIFFERENCES  --  attributable(arm) - attributable(baseline), "
-          "Holm within dataset")
-    print("=" * 104)
-    print(f"{'variant':<13} {'arm':<11} {'DiD':>9} {'95% CI':>22} {'p':>8} {'p (Holm)':>10}")
-    for variant, rows in res["did"].items():
-        for r in rows:
-            ci = f"[{100 * r['lo']:+.1f}, {100 * r['hi']:+.1f}] pp"
-            print(f"{variant:<13} {r['arm']:<11} {100 * r['point']:>+8.1f}pp {ci:>22} "
-                  f"{r['p']:>8.3f} {r['p_holm']:>10.3f}")
-        print()
+    for fam, by_variant in res["did_families"].items():
+        if not by_variant:
+            continue
+        ref = config.CONTRAST_FAMILIES[fam][0]
+        print("=" * 104)
+        print(f"DIFFERENCE-IN-DIFFERENCES  --  family {fam}: attributable(arm) - "
+              f"attributable({ref}), Holm within family and dataset")
+        print("=" * 104)
+        print(f"{'variant':<13} {'arm':<11} {'DiD':>9} {'95% CI':>22} {'p':>8} {'p (Holm)':>10}")
+        for variant, rows in by_variant.items():
+            for r in rows:
+                ci = f"[{100 * r['lo']:+.1f}, {100 * r['hi']:+.1f}] pp"
+                print(f"{variant:<13} {r['arm']:<11} {100 * r['point']:>+8.1f}pp {ci:>22} "
+                      f"{r['p']:>8.3f} {r['p_holm']:>10.3f}")
+            print()
 
     print("=" * 104)
     print("CONTINUITY  --  original stage-05 flag vs cite_aligned, PLANTED condition, all arms")
@@ -417,19 +434,26 @@ def pooled(results, key="rel_uncited"):
         den += w
     out["attributable_baseline"] = {"pooled": (num / den if den else float("nan")),
                                     "weight": den}
-    for arm in ARM_ORDER:
-        if arm == BASELINE_ARM:
-            continue
-        num = den = 0.0
-        for res in results:
-            rows = {r["arm"]: r for r in res["did"].get(key, [])}
-            cell = res["cells"].get(f"{key}__{arm}")
-            if arm not in rows or not cell:
-                continue
-            w = cell["planted"]["clusters"]
-            num += w * rows[arm]["point"]
-            den += w
-        out["did"][arm] = {"pooled": (num / den if den else float("nan")), "weight": den}
+    out["did_families"] = {}
+    for fam, (ref, arms) in config.CONTRAST_FAMILIES.items():
+        fam_out = {}
+        for arm in arms:
+            num = den = 0.0
+            for res in results:
+                rows = {r["arm"]: r for r in res["did_families"][fam].get(key, [])}
+                cell = res["cells"].get(f"{key}__{arm}")
+                if arm not in rows or not cell:
+                    continue
+                w = cell["planted"]["clusters"]
+                num += w * rows[arm]["point"]
+                den += w
+            if den:
+                fam_out[arm] = {"pooled": num / den, "weight": den}
+        out["did_families"][fam] = fam_out
+    # Family A under the original key, so earlier readers of the pooled file still work.
+    for arm in config.CONTRAST_FAMILIES["A"][1]:
+        out["did"][arm] = out["did_families"]["A"].get(
+            arm, {"pooled": float("nan"), "weight": 0.0})
     return out
 
 
@@ -468,8 +492,10 @@ def main():
               f"cluster-weighted  --  EXPLORATORY (not pre-specified in W5)")
         print("=" * 104)
         print(f"  attributable(baseline) = {100 * pool['attributable_baseline']['pooled']:+.1f} pp")
-        for arm, v in pool["did"].items():
-            print(f"  DiD({arm:<10}) = {100 * v['pooled']:+.1f} pp")
+        for fam, arms in pool["did_families"].items():
+            ref = config.CONTRAST_FAMILIES[fam][0]
+            for arm, v in arms.items():
+                print(f"  [{fam}] DiD({arm:<10} - {ref:<10}) = {100 * v['pooled']:+.1f} pp")
         (ROOT / "runs" / f"pooled_noplant_{args.outcome}.json").write_text(
             json.dumps(pool, indent=2, default=str) + "\n")
 

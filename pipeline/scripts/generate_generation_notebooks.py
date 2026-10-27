@@ -21,6 +21,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import config
 
 ROOT = config.ROOT
+V1_DOCKER_IMAGE = ("gcr.io/kaggle-private-byod/python@sha256:"
+                   "37c64f7dd9c54116ecd1bcc88817c5469b88387388fade02bfa8bf3fc647d461")
 
 # Set by main() from the dataset registry; the cell builders below close over it.
 RETRIEVAL_DATASET = None
@@ -66,6 +68,18 @@ ARMS = [
         "model": "qingfei1/R-Search-7b-grpo",
         "output_file": "generations_rsearch.json",
     },
+    # SFT reference arm (non-RL fine-tune from the same base). Added after the NQ legacy names
+    # were frozen, so its NQ slug/title follow the parameterised `{short}-{stage}-{dataset}` rule.
+    {
+        "dir": "02e_generation_searchsft",
+        "short": "02e-search-sft",
+        "slug": "02e-search-sft-gen-nq",
+        "title": "02e search sft gen nq",
+        "heading": "02e - Generation: Search-SFT (SFT control arm)",
+        "arm_label": "SFT arm 1 - Search-7B-SFT",
+        "model": "Jianwen/Search-7B-SFT",
+        "output_file": "generations_search_sft.json",
+    },
 ]
 
 
@@ -107,8 +121,12 @@ assigns either a T4 (`sm_75`, Turing) or a P100 (`sm_60`, Pascal) for `enable_gp
 Kaggle's *default* preinstalled torch (observed: `2.10.0+cu128`) only supports `sm_70`+ --
 it has dropped Pascal support entirely, so landing on a P100 with the default torch fails
 at `generate()` time with `CUDA error: no kernel image is available for execution on the
-device` (hit this empirically 2026-08-08). `torch==2.4.1+cu121` supports both
-architectures.
+device` (hit this empirically 2026-08-08). `torch==2.4.1+cu121` supported both
+architectures and is what every v1 run used, on Kaggle's Python 3.12 image.
+
+**v2 (2026-10-13):** Kaggle's default image has since moved to Python 3.13, where this pin
+has no wheel. The v2 kernels therefore pin v1's own docker image in kernel-metadata
+(`docker_image`), so this cell installs exactly what v1 installed.
 
 **Also remove `torchvision`/`torchaudio`** -- pinning `torch` alone leaves Kaggle's
 preinstalled `torchvision`/`torchaudio` (built against `torch 2.10.0+cu128`) in place, and
@@ -130,8 +148,11 @@ subprocess.run(
     ["pip", "install", "-q", "transformers>=4.46", "accelerate", "rank_bm25"],
     check=True,
 )
+import sys
 import torch
-print(f"torch {torch.__version__}, CUDA available: {torch.cuda.is_available()}")
+import transformers
+print(f"python {sys.version.split()[0]}, torch {torch.__version__}, "
+      f"transformers {transformers.__version__}, CUDA available: {torch.cuda.is_available()}")
 if torch.cuda.is_available():
     for i in range(torch.cuda.device_count()):
         print(f"  device {i}: {torch.cuda.get_device_name(i)}, "
@@ -257,6 +278,12 @@ rather than T4x2. `"auto"`'s memory estimation played it safe and offloaded a sl
 model to CPU (`hf_device_map` showed `{0, 'cpu'}`), which measured ~4.75x slower. A 7B
 model in fp16 (~14-15GB) fits in a 16GB card with room for the KV cache at this prompt
 length, so accelerate's safety margin costs time and buys nothing here.
+
+**v2 (2026-10-13): P100s are no longer offered; the only GPU is T4x2.** A T4 has 14.6 GiB
+usable and the fp16 weights alone take 14.2 GiB, so one card OOMs on the first generation.
+With two cards visible the layers are split evenly across both (`"balanced"`, with a GPU-only
+memory budget so nothing lands on CPU). The arithmetic is unchanged; only the GPU model differs
+from v1.
 """
 
 STAGE_4_CODE = """
@@ -264,13 +291,23 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+# v2: Kaggle's only GPU is now T4x2 (14.6 GiB each), too small for 7B fp16 on one card, so
+# layers are split evenly across both cards. max_memory leaves no room on CPU, so the
+# assert below catches any offload. On a single card this is the v1 placement unchanged.
+if torch.cuda.device_count() > 1:
+    placement = dict(device_map="balanced",
+                     max_memory={i: "13GiB" for i in range(torch.cuda.device_count())})
+else:
+    placement = dict(device_map={"": 0})
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_NAME,
     torch_dtype=torch.float16,
-    device_map={"": 0},
+    **placement,
 )
 model.eval()
-print(f"Loaded {MODEL_NAME} on device: {next(model.parameters()).device}")
+placed = set(getattr(model, "hf_device_map", {"": 0}).values())
+assert not placed & {"cpu", "disk"}, f"model offloaded off-GPU: {placed}"
+print(f"Loaded {MODEL_NAME} on devices: {sorted(map(str, placed))}")
 print(f"GPU memory allocated: {torch.cuda.memory_allocated() / 1e9:.1f} GB / "
       f"reserved: {torch.cuda.memory_reserved() / 1e9:.1f} GB")
 """
@@ -526,6 +563,12 @@ def build_kernel_metadata(arm, dataset):
         "kernel_type": "notebook",
         "is_private": True,
         "enable_gpu": True,
+        # v2: pin v1's software. Every v1 kernel ran on this exact image (read back with
+        # `kaggle kernels pull -m`); Kaggle's default has since moved to Python 3.13, where the
+        # torch==2.4.1 pin cannot install. v1 ran on P100s, which Kaggle no longer offers, so
+        # the GPU is T4x2 (model split across both cards, Stage 4). Needs kaggle CLI >= 2.x.
+        "docker_image": V1_DOCKER_IMAGE,
+        "machine_shape": "NvidiaTeslaT4",
         "enable_tpu": False,
         "enable_internet": True,
         "keywords": [],

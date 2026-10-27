@@ -56,6 +56,7 @@ ARMS = [
     ("04b_postration_searchr1", "04b_postration", "search_r1"),
     ("04c_postration_research", "04c_postration", "research"),
     ("04d_postration_rsearch", "04d_postration", "rsearch"),
+    ("04e_postration_searchsft", "04e_postration", "search_sft"),
 ]
 
 

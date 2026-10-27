@@ -106,7 +106,8 @@ def run(dataset, sample, seed):
         for f in failures[:20]:
             print(f"    {f}")
         return False
-    print(f"{dataset:9} ok - {checked} pairs checked, 12/12 cells")
+    cells = len(ARMS) * len(VARIANTS)
+    print(f"{dataset:9} ok - {checked} pairs checked, {cells}/{cells} cells")
     return True
 
 

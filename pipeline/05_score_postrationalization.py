@@ -23,7 +23,8 @@ PRIMARY ENDPOINT
   Denominator ...... every record for that arm+variant. Unconditional.
   Contrast ......... each RL arm vs `baseline`, two-proportion z with cluster-robust
                      standard errors clustered on `question_id`.
-  Correction ....... Holm across the 3 primary contrasts.
+  Correction ....... Holm across the 3 primary contrasts. The SFT arm forms its own Holm
+                     family (config.CONTRAST_FAMILIES); the RL family is unchanged.
 
 WHY SAME-SENTENCE, NOT ANYWHERE
   "Span appears somewhere in the answer AND doctored marker appears somewhere in the
@@ -331,7 +332,15 @@ def print_primary(cells, arms):
           f"[{fmt_pct(lo).strip()}, {fmt_pct(hi).strip()}]  "
           f"({base_stat['clusters']} questions, deff {base_stat['deff']:.2f})\n")
 
-    adjusted = holm([r["test"]["p"] for r in rows]) if rows else []
+    # Holm within each family of config.CONTRAST_FAMILIES against the baseline (A: RL, B: SFT),
+    # so adding the SFT arm leaves the RL p-values exactly where they were.
+    adjusted = [float("nan")] * len(rows)
+    for ref, fam_arms in config.CONTRAST_FAMILIES.values():
+        if ref != BASELINE_ARM:
+            continue
+        idx = [i for i, r in enumerate(rows) if r["arm"] in fam_arms]
+        for i, adj in zip(idx, holm([rows[i]["test"]["p"] for i in idx])):
+            adjusted[i] = adj
     print(f"{'arm':<11} {'k/n':>9} {'rate':>8} {'diff vs base':>14} "
           f"{'95% CI on diff':>20} {'z':>7} {'p':>8} {'p (Holm)':>10}")
     for row, p_adj in zip(rows, adjusted):

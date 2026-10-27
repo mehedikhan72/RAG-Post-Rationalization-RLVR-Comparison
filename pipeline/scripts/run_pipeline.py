@@ -41,12 +41,14 @@ GEN_ARMS = [
     ("02b_generation_searchr1", "02b_gen", "generations_search_r1.json"),
     ("02c_generation_research", "02c_gen", "generations_research.json"),
     ("02d_generation_rsearch", "02d_gen", "generations_rsearch.json"),
+    ("02e_generation_searchsft", "02e_gen", "generations_search_sft.json"),
 ]
 POSTRATION_ARMS = [
     ("04a_postration_baseline", "04a_postration", "baseline"),
     ("04b_postration_searchr1", "04b_postration", "search_r1"),
     ("04c_postration_research", "04c_postration", "research"),
     ("04d_postration_rsearch", "04d_postration", "rsearch"),
+    ("04e_postration_searchsft", "04e_postration", "search_sft"),
 ]
 
 STAGES = ["generation", "adversarial", "postration", "scoring"]

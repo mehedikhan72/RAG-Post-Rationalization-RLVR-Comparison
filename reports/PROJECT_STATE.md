@@ -1,119 +1,113 @@
-# RAG Citation Faithfulness under RLVR Training — Project State
+# Attributable Post-Rationalization in RAG Citations — Study Summary
 
-**Status:** RQ1 measurement complete, including the no-planting control. Ready to write up.
-**Scope of this file:** the current state of the work, in full, with every number a paper would
-need. Implementation detail, environment mechanics and the debugging history live in
-`reports/TECHNICAL_NOTES.md`. Nothing here is historical narrative.
+The design, every number and the findings of the study, in one place. Implementation, reproduction
+commands and environment details are in [`TECHNICAL_NOTES.md`](TECHNICAL_NOTES.md). The paper is
+*Attributable Post-Rationalization in RAG Citations: A Controlled Reproduction and an RLVR
+Comparison*.
 
 ---
 
 ## 1. The question
 
-Retrieval-augmented generation systems attach citations to their answers, and readers treat those
-citations as evidence the answer came from the cited source. Wallat et al. (2025) showed that
-trust is often misplaced: RAG models frequently cite passages they did not use —
-**post-rationalization**, a citation attached after the fact. Meanwhile the field trains retrieval
-agents with **RLVR** (Reinforcement Learning with Verifiable Rewards), which optimises answer
-*correctness* against an automatic checker and says nothing about whether the citation is honest.
+RAG systems attach citations to their answers, and readers treat those citations as evidence of
+where the answer came from. Wallat et al. (2025) showed that this trust is often misplaced:
+models frequently cite passages they did not use. They call this **post-rationalization**: the
+answer comes first, and the citation is attached afterwards. Meanwhile, search agents are now
+trained with **RLVR** (reinforcement learning from verifiable rewards). RLVR rewards a *correct
+answer* and says nothing about whether the citation is honest.
 
-**RQ1 (answered here).** Does RLVR training increase citation post-rationalization relative to a
-non-RL baseline, holding the base model, retrieval corpus, prompt and scorer constant?
+**Question.** Does RLVR training change citation post-rationalization relative to the base model,
+holding the base model, retrieval corpus, prompt and scorer constant? And is any change due to RL
+itself, or to fine-tuning on search data at all? A non-RL fine-tune from the same base answers
+the second part.
 
-**RQ2 (not started).** Can a cheap single-GPU inference-time repair method (claim-level
-re-retrieval and revision, RARR-style) applied to the non-RL baseline recover most of RLVR's
-accuracy gain while avoiding its citation cost?
-
-**The constraint that shapes the design:** free-tier Kaggle only — 2×T4 or 1×P100, 2 concurrent
-GPU sessions, ~12 h each, 30 h/week. This is used as framing, not apologised for: *what can be
-learned about RLVR's value using only inference-time methods on already-released checkpoints.*
+**Constraint.** Free-tier Kaggle GPUs only. Every model runs inference on released checkpoints.
 
 ---
 
 ## 2. Design
 
-### 2.1 Arms — four models, one base
+### 2.1 Models: five, one base
 
-| arm | model | training |
+| arm | checkpoint | training on top of the base |
 |---|---|---|
 | `baseline` | `Qwen/Qwen2.5-7B-Instruct` | none |
-| `search_r1` | `PeterJinGo/SearchR1-nq_hotpotqa_train-qwen2.5-7b-it-em-ppo` | PPO, NQ+HotpotQA |
-| `research` | `agentrl/ReSearch-Qwen-7B-Instruct` | GRPO |
-| `rsearch` | `qingfei1/R-Search-7b-grpo` | GRPO |
+| `search_r1` | `PeterJinGo/SearchR1-nq_hotpotqa_train-qwen2.5-7b-it-em-ppo` | RLVR, PPO, NQ+HotpotQA |
+| `research` | `agentrl/ReSearch-Qwen-7B-Instruct` | RLVR, GRPO |
+| `rsearch` | `qingfei1/R-Search-7b-grpo` | RLVR, GRPO |
+| `search_sft` | `Jianwen/Search-7B-SFT` | supervised fine-tuning on 1,214 search trajectories over NQ+HotpotQA, written by o3 (SkillRL's checkpoint before its RL stage) |
 
-All four share the Qwen2.5-7B-Instruct base, which is what makes the contrast a test of RL
-training rather than of model family. Each RL checkpoint's native search/tool-calling is
-deliberately **never invoked** — every arm is prompted directly with the same fixed top-5
-passages, so "RL changed citation behaviour" is not confounded with "RL changed retrieval".
+All five share the Qwen2.5-7B-Instruct base and have byte-identical chat templates. Any difference
+from the baseline is therefore training, not model family. No agent's own search or tool calling
+is ever invoked. Every model gets the same fixed top-5 passages, so "training changed citation
+behaviour" is not confounded with "training changed retrieval".
 
-Two checkpoints were considered and excluded, for reasons that belong in the paper: **RAG-R1**
-(no public checkpoint) and **R1-Searcher** (fine-tuned from Qwen2.5-7B-*Base*, so including it
-would conflate instruction-tuning with RL).
+Search-SFT is a **reference point for fine-tuning on search data**, not a matched control. It
+shares Search-R1's training questions but not its data, format or trainer.
 
-### 2.2 Datasets — four, chosen to break one specific confound
+**Considered and excluded:**
+- **RAG-R1:** no public checkpoint.
+- **R1-Searcher:** trained from the *base* Qwen2.5-7B, not the instruct model.
+- **SimpleDeepSearcher** (SFT): failed the go/no-go gate (§3), with 0 of 499 format-compliant
+  answers on NQ. It writes long reasoning until the 300-token cap.
 
-| dataset | questions | chunks | gold-hit@5 | mean unique docs in top-5 |
+### 2.2 Datasets: four, chosen to break one confound
+
+| dataset | questions | passages | gold-hit@5 | mean unique docs in top-5 |
 |---|---|---|---|---|
 | KILT-NQ | 499 | 40,791 | 95.4% | 2.33 |
 | ALCE-QAMPARI | 500 | 44,879 | 62.7% (of 440 evaluable) | 5.00 |
 | HAGRID | 500 | 8,986 | 94.4% | 4.66 |
 | RAGTruth-QA | 500 | 6,981 | 91.8% | 4.82 |
 
-Search-R1 is trained on NQ train and NQ is the KILT evaluation set, so on NQ alone the contrast
-partly measures "trained-on-NQ vs not". The three added datasets are out-of-domain for all three
-RL arms, which is precisely why they exist. They also fixed NQ's worst retrieval pathology: NQ has
-186/499 (37.3%) questions whose entire top-5 comes from one document; the other three have
-**zero**. QAMPARI's low gold-hit@5 is expected and benign — its gold ids are heuristically
-recovered by answer-alias matching inside each question's own 100 retrieved docs, so the number
-measures the heuristic, not the retriever.
+Search-R1 and Search-SFT were trained on NQ questions, so on NQ alone a contrast partly measures
+familiarity with the data. The other three datasets are out of domain for every fine-tuned model.
+They also avoid NQ's retrieval quirk: in 186 of 499 NQ questions (37.3%) all five passages come
+from one document, and the other datasets have none. QAMPARI's low gold-hit@5 is expected. Its
+gold ids are recovered heuristically by answer-alias matching, so that number measures the
+heuristic, not the retriever.
 
 ### 2.3 Pipeline
 
 ```
-01 build      per-dataset notebook -> sampled_questions.json + chunks.json
-02 generation 4 GPU kernels/dataset -> clean cited answers on the top-5
-03 adversarial local, no GPU        -> plant a span, 3 variants per claim
-04 re-inference 4 GPU kernels/ds    -> same model, same prompt, doctored context
-05 scoring    local, deterministic  -> the post-rationalization flag
---- W2 ---
-03b control   local                 -> the same contexts with the span removed
-04b re-inference 4 GPU kernels/ds   -> the `random` control only (the others are derived)
-05b scoring   local                 -> attributable rates, DiD, cluster bootstrap
+01 build         per-dataset notebook  -> sampled_questions.json + chunks.json
+02 generation    GPU, one notebook per model and dataset -> clean cited answers on the top-5
+03 adversarial   local, no GPU         -> plant a span, three variants per claim
+04 re-inference  GPU, same model and prompt, doctored context
+05 scoring       local, deterministic  -> the post-rationalization flag
+03b control      local                 -> the same contexts with the span removed
+04b control      GPU, `random` variant only (the other two are derived exactly, §4)
+05b scoring      local                 -> attributable rates, differences, cluster bootstrap
 ```
 
-**Retrieval.** BM25 (`rank_bm25`) over ~100-token chunks, top-5. Indexing is on the passage body
-only, not `"{title}: {piece}"` — indexing the title gave every chunk of a document the same
-title-term boost and collapsed the top-5 onto one document.
+**Retrieval.** BM25 (`rank_bm25`, `BM25Okapi`, default k1 = 1.5, b = 0.75) over passages of up to
+100 words, top 5. Scoring uses the passage body only; the model sees "Title: text".
 
-**Prompt.** One prompt, byte-identical across arms and across stages 02/04 (SHA-256
-`00db51102ce17927…`): answer using ONLY the numbered passages, each sentence must end with
-exactly one citation in square brackets, never `[1][2]`, reply exactly "I don't know" if the
-passages do not contain the answer. Greedy decoding (`do_sample=False`), `max_new_tokens=300`.
+**Prompt.** One prompt, byte-identical across models and stages (SHA-256 `00db51102ce17927…`):
+- answer using ONLY the numbered passages;
+- end every sentence with exactly one citation in square brackets, never `[1][2]`;
+- reply exactly "I don't know" if the passages do not contain the answer.
 
-**The unit of analysis is a claim** — one sentence carrying exactly one citation. Answers that
-violate the format are dropped whole rather than partially salvaged, because rescuing the
-compliant half would reintroduce exactly the claim↔citation ambiguity the prompt exists to
-remove.
+Decoding is greedy, at most 300 new tokens, in fp16 with no quantization.
 
-**Span rule.** The 4 consecutive words with the most characters in the claim. Deliberately blunt
-and deterministic. Wallat needs no such rule (Command R+ emits its own grounded spans as
-`<co: 0,2>…</co: 0,2>` markup); Qwen has no equivalent. An earlier rule — longest overlap between
-claim and cited chunk — was abandoned because requiring the span to appear in the chunk biased it
-toward the question's topic entity: only 13–18% of spans touched the gold answer while 27–40%
-consisted entirely of words already in the question. Taking the model's own wording with no
-chunk-matching removes that bias, and `span_in_question` is recorded per record so the residual
-overlap is measurable rather than assumed away.
+**Unit of analysis: a claim,** meaning one sentence with exactly one citation. An answer that
+breaks the format is dropped whole. Rescuing the compliant half would bring back the
+claim-to-citation ambiguity the format exists to remove.
 
-**Three adversarial variants**, each replacing exactly one of the five slots so every context
-stays at five chunks:
+**Span rule.** The four consecutive words with the most characters in the claim. The rule is
+blunt and deterministic. It is taken from the claim alone, not matched against the cited passage,
+so the span is the model's own wording. `span_in_question` is recorded per record, so any overlap
+with the question can be measured.
+
+**Three variants.** Each changes exactly one of the five slots:
 
 | variant | the doctored slot becomes | substitutes? |
 |---|---|---|
-| `random` | a chunk from a *different question*, + span | **yes** |
-| `rel_uncited` | an uncited chunk from *this* question's top-5, its own text, + span | no |
-| `cited_other` | a chunk cited by a *different sentence* of this same answer, + span | no |
+| `random` | a passage from a *different question*, + span | **yes** |
+| `rel_uncited` | an uncited passage from *this* question's top-5, its own text, + span | no |
+| `cited_other` | a passage cited by a *different sentence* of this answer, + span | no |
 
-The genuinely cited chunk stays present in every variant, so the model always has a legitimate
-source available. The question is whether it *also* reaches for the planted one.
+The passage the model originally cited stays in the context in every variant.
 
 ### 2.4 Attrition
 
@@ -123,483 +117,360 @@ source available. The question is whether it *also* reaches for the planted one.
 | NQ | search_r1 | 208 (42%) | 291 | 238 | 281 |
 | NQ | research | 158 (32%) | 341 | 310 | 355 |
 | NQ | rsearch | 129 (26%) | 370 | 341 | 387 |
+| NQ | search_sft | 108 (22%) | 391 | 359 | 395 |
 | QAMPARI | baseline | 186 (37%) | 314 | 241 | 329 |
 | QAMPARI | search_r1 | 259 (52%) | 241 | 186 | 283 |
 | QAMPARI | research | 191 (38%) | 309 | 258 | 352 |
 | QAMPARI | rsearch | 167 (33%) | 333 | 285 | 362 |
+| QAMPARI | search_sft | 121 (24%) | 379 | 309 | 369 |
 | HAGRID | baseline | 85 (17%) | 415 | 378 | 438 |
 | HAGRID | search_r1 | 121 (24%) | 379 | 327 | 389 |
 | HAGRID | research | 90 (18%) | 410 | 383 | 439 |
 | HAGRID | rsearch | 75 (15%) | 425 | 396 | 435 |
+| HAGRID | search_sft | 75 (15%) | 425 | 388 | 408 |
 | RAGTruth | baseline | 86 (17%) | 414 | 291 | 874 |
 | RAGTruth | search_r1 | 127 (25%) | 373 | 234 | 705 |
 | RAGTruth | research | 85 (17%) | 415 | 296 | 828 |
 | RAGTruth | rsearch | 75 (15%) | 425 | 346 | 886 |
+| RAGTruth | search_sft | 72 (14%) | 428 | 348 | 813 |
 
-Search-R1 abstains most on every dataset (24–52%); R-Search abstains least on every dataset.
-RAGTruth yields far more claims per question because its answers are longer multi-sentence
-passages, which is why its `cited_other` cell is the only well-powered one in the study.
-
-"Usable claims" is the count entering stage 03. The per-cell *n* in §5 is slightly smaller for
-some cells because a variant is only constructed where it is eligible — `random` and
-`rel_uncited` need at least one uncited slot, `cited_other` needs a second cited sentence — so
-e.g. RAGTruth baseline has 874 claims but 864 `rel_uncited` records and 623 `cited_other` ones.
+Search-R1 abstains most on every dataset (24–52%). Search-SFT and R-Search abstain least.
+RAGTruth answers are longer, so they give more claims per question, which is why its
+`cited_other` cell is the only well-powered one. The per-cell *n* in §5 is slightly smaller than
+"usable claims": a variant is built only where it is eligible (`random` and `rel_uncited` need
+an uncited slot; `cited_other` needs a second cited sentence).
 
 ---
 
-## 3. Analysis plan (pre-registered, twice)
+## 3. Analysis plan (pre-specified)
 
-Both the original scoring rule and the control's were fixed **in writing before the relevant
-scorer was run** — the first in response to a HARKing criticism from internal review, the second
-pre-registered in writing, before any control record was scored.
+The scoring rule, the primary outcome and the corrected comparisons were written down **before
+the relevant scorer was run**. The same was done for the Search-SFT comparisons before that model
+was run, including a go/no-go gate: an arm is dropped if fewer than 30% of questions get a
+format-compliant answer on two or more datasets. These plans were kept in the project notes, not
+filed with a public registry.
 
 | | |
 |---|---|
-| Primary variant | `rel_uncited` — the Wallat-comparable cell with usable *n* |
+| Primary variant | `rel_uncited` |
 | Unit | one claim; **cluster** = `question_id` |
 | Denominator | every record in the cell (**unconditional**) |
-| Primary outcome | see §3.1 |
-| Contrast | each RL arm vs baseline |
-| Correction | **Holm** across the 3 contrasts, within dataset |
+| Primary outcome | `cite_aligned` (§3.1) |
+| Contrast families | A: each RL agent vs baseline. B: Search-SFT vs baseline. C: each RL agent vs Search-SFT (exploratory) |
+| Correction | **Holm** within each family, within dataset |
 
-*Why unconditional:* dividing by "the span was recovered" conditions on a post-treatment collider
-— recovery is downstream of the treatment and differs by arm. The decomposition
-`P(recover)` / `P(flag | recover)` / `P(flag)` is reported alongside so a null can be attributed
-to a specific stage.
+*Why unconditional:* dividing by "the span came back" conditions on something downstream of the
+treatment that differs by model. The breakdown into `P(recover)`, `P(flag | recover)` and
+`P(flag)` is reported alongside.
 
-*Why cluster-robust:* one question yields up to seven claims sharing a context and a single
-answer, so the textbook binomial SE is anti-conservative. Observed design effect ≈ 1.0.
+*Why clusters:* one question yields up to 7 claims (11 on RAGTruth) sharing a context and an
+answer, so treating claims as independent would understate the uncertainty.
 
-### 3.1 Two outcomes, and why there are two
+### 3.1 Two outcomes
 
-- **`flag`** (original, stage 05): the doctored marker is cited **in the same sentence in which
-  the planted span reappears**. Coupling span and citation within one sentence is what makes the
-  flag mean "it cited *that* passage *for* that statement"; the looser "span somewhere AND marker
-  somewhere" rule counts coincidence and inflates the count several-fold.
-- **`cite_aligned`** (stage 05b): the doctored marker is cited in the **aligned sentence** — the
-  answer sentence with the highest token-set Jaccard to the original clean-run claim, requiring
-  Jaccard ≥ 0.3. Below that the record is `unaligned` and scores 0.
+- **`flag`** (stage 05): the doctored marker is cited **in the same sentence in which the planted
+  span reappears**.
+- **`cite_aligned`** (stage 05b, primary): the doctored marker is cited in the **aligned
+  sentence**. That is the answer sentence with the highest token-set Jaccard similarity to the
+  original claim, which must be at least 0.3. Below that threshold the record scores 0.
 
-The second exists because the first **cannot be evaluated on a condition with no span**. Both are
-computed by one function on one code path across both conditions. Agreement on the planted
-condition, all arms pooled:
+The second exists because the first cannot be evaluated when no span was planted. Agreement on the
+planted condition, all five models pooled:
 
 | dataset | `random` | `rel_uncited` | `cited_other` |
 |---|---|---|---|
-| NQ | 99.0% | 98.6% | 94.8% |
-| QAMPARI | 99.2% | 98.4% | 92.2% |
-| HAGRID | 99.2% | 98.6% | 95.8% |
-| RAGTruth | 99.6% | 99.0% | 94.7% |
-
-The two rules disagree on 1–8% of records and no per-cell rate moves by more than ~1pp, so the
-change of outcome does not disturb anything.
+| NQ | 99.0% | 98.4% | 92.6% |
+| QAMPARI | 99.2% | 98.5% | 92.9% |
+| HAGRID | 99.2% | 98.6% | 96.0% |
+| RAGTruth | 99.5% | 98.9% | 95.0% |
 
 ### 3.2 The estimand
 
 ```
 attributable(arm, variant) = P(doctored slot cited | planted) − P(doctored slot cited | control)
+DiD = attributable(arm) − attributable(reference arm)
 ```
 
-95% CI from a **cluster bootstrap over `question_id`** — 2,000 replicates, questions resampled
-with replacement, *both* conditions recomputed on the same resampled questions so the pairing
-survives. The RLVR contrast is a **difference-in-differences** on that quantity:
-`DiD = attributable(arm) − attributable(baseline)`, each replicate resampling the union of
-question ids across the two arms, Holm-corrected within dataset.
+The 95% CIs come from a **cluster bootstrap over `question_id`**: 2,000 replicates, seed 42, with
+both conditions recomputed on the same resampled questions.
 
 ---
 
-## 4. The no-planting control (W2)
+## 4. The no-planting control
 
-This is the part most likely to be new to a reader, and it is the paper's methodological
-contribution. **Wallat et al. ran no control** — verified against the authors' own release:
-`attribution_analysis.ipynb` cells 50–54 build exactly three datasets, all planted
-(`doc += "\n" + citation['claim']`); cell 58 evaluates `num_injected_cited /
-num_claim_still_there`, a raw rate conditional on the claim reappearing, with no un-planted
-comparison. Nothing in `qnd.py`, `advanced_rag.py` or `conf/config.yaml` parameterises one. Their
-headline numbers (12% random, 57% relevant-but-uncited, 55% cited-for-other-reason, each
-conditional on the planted statement reappearing — which itself happens only 63–70% of the time)
-are raw rates.
+Wallat et al. ran no control. Their released code builds three planted datasets and reports a raw
+rate, counted only over answers in which the planted statement reappeared.
 
-### 4.1 The design finding, which came before any number
+### 4.1 Two of the three control values follow from the construction
 
-The worry motivating a control is that between the clean run and the doctored run **two things
-change at once**: the contents of the doctored slot, and the span appended to it. Reading the
-construction code shows that is true for exactly one of the three variants:
-
-| variant | slot contents change? | span appended? | needs a control? |
+| variant | slot contents change? | span appended? | control |
 |---|---|---|---|
-| `random` | **yes** — a chunk from another question replaces an uncited slot | yes | **yes** |
-| `rel_uncited` | no — the chunk stays in the slot it already occupies | yes | no, single-factor already |
-| `cited_other` | no — same | yes | no, single-factor already |
+| `random` | **yes**: a passage from another question replaces an uncited slot | yes | must be measured |
+| `rel_uncited` | no | yes | 0 by construction |
+| `cited_other` | no | yes | 100% under cited-anywhere, by selection |
 
-For `rel_uncited` and `cited_other` the construction is `emit(variant, target, target, …)` — the
-chunk keeps its slot and the only edit is the appended span. Removing the span therefore restores
-the clean context **byte-for-byte**; since the stage-04 prompt is byte-identical to stage-02's and
-both decode greedily, the control answer *is* the archived clean answer. Verified per record on
-all 10,720 of them (chunk ids, order, and every slot text against `chunks.json`).
+For `rel_uncited` and `cited_other`, removing the span restores the clean context **byte for
+byte**. With the same prompt and greedy decoding, the control answer *is* the clean answer. This
+was checked record by record on all **13,282** records of these two variants (five models): chunk
+ids, order, and every passage text. Six records score above zero, all from RAGTruth answers that
+repeat an identical sentence.
 
-Two consequences:
-
-1. **The primary endpoint never had the confound.** `attributable = raw` on `rel_uncited`,
-   analytically and empirically.
-2. **For those two variants the control rate is 0 by construction, not by measurement** — the
-   slot is *selected* for
-   not having been cited for that claim, and the control run is the run that selection was made
-   from. 6 records in 10,720 score non-zero, all duplicate-sentence alignment ties on RAGTruth
-   where an identical repeated sentence carries the doctored marker.
-
-Only `random` genuinely needed GPU. That took 16 Kaggle kernels, ~10 h GPU, 7,625 control records,
-every one paired record-for-record with its planted twin.
+Only `random` needed GPU control runs: **9,590 control records**, each paired with its planted
+twin.
 
 ### 4.2 What the control found on `random`
 
-`attributable = planted − control`, `cite_aligned`, percentage points:
+`attributable = planted − control`, `cite_aligned`, in percentage points:
 
-| dataset | baseline | search_r1 | research | rsearch |
-|---|---|---|---|---|
-| NQ | 10.8 − 0.0 = **+10.8** | 8.9 − 0.0 = **+8.9** | 9.3 − 0.3 = **+9.0** | 10.6 − 0.3 = **+10.3** |
-| QAMPARI | 4.4 − 0.0 = **+4.4** | 5.7 − 0.0 = **+5.7** | 7.8 − 0.0 = **+7.8** | 8.5 − 0.3 = **+8.2** |
-| HAGRID | 8.5 − 0.9 = **+7.6** | 8.6 − 0.0 = **+8.6** | 10.6 − 0.0 = **+10.6** | 12.6 − 0.7 = **+11.9** |
-| RAGTruth | 2.2 − 0.1 = **+2.1** | 3.4 − 0.6 = **+2.9** | 2.4 − 0.1 = **+2.3** | 4.0 − 0.1 = **+3.9** |
+| dataset | baseline | search_r1 | research | rsearch | search_sft |
+|---|---|---|---|---|---|
+| NQ | 10.8 − 0.0 = **+10.8** | 8.9 − 0.0 = **+8.9** | 9.3 − 0.3 = **+9.0** | 10.6 − 0.3 = **+10.3** | 13.7 − 0.3 = **+13.4** |
+| QAMPARI | 4.4 − 0.0 = **+4.4** | 5.7 − 0.0 = **+5.7** | 7.8 − 0.0 = **+7.8** | 8.5 − 0.3 = **+8.2** | 8.8 − 0.0 = **+8.8** |
+| HAGRID | 8.5 − 0.9 = **+7.6** | 8.6 − 0.0 = **+8.6** | 10.6 − 0.0 = **+10.6** | 12.6 − 0.7 = **+11.9** | 12.7 − 0.2 = **+12.4** |
+| RAGTruth | 2.2 − 0.1 = **+2.1** | 3.4 − 0.6 = **+2.9** | 2.4 − 0.1 = **+2.3** | 4.0 − 0.1 = **+3.9** | 3.8 − 0.0 = **+3.8** |
 
-Control base rate is **exactly 0 in 7 of the 16 cells**, and the other nine fall between 0.1% and
-0.9%. So the model does occasionally cite a passage lifted from an unrelated question with nothing
-planted in it — but rarely: **83–100% of the raw `random` rate survives as attributable, mean
-97%.**
-The plan's central worry was justified in principle and small in practice.
+Across all models the control is 19 of 9,590 records (0.2%). It is **exactly 0 in 9 of the 20
+cells** and 0.1–0.9% in the rest, and **83–100% of each raw rate survives as attributable (mean
+97%)**.
 
 ### 4.3 Where the control destroys a number
 
-On `cited_other` the doctored slot is *selected* as one the clean answer **already cites** for a
-different sentence. Under the loose "was the passage cited at all" outcome (`cite_anywhere`) the
-control is therefore 100% by construction and the attributable effect is **negative**:
+On `cited_other`, the doctored slot is selected as one the clean answer **already cites** for a
+different sentence. Under the loose "cited at all" outcome (`cite_anywhere`), the control is
+therefore 100% and the attributable effect is **negative** (baseline):
 
 | dataset | planted k/n | rate | control k/n | attributable | 95% CI |
 |---|---|---|---|---|---|
-| NQ | 58/69 | 84.1% | 69/69 | **-15.9pp** | [-25.4, -7.9] pp |
-| QAMPARI | 97/123 | 78.9% | 123/123 | **-21.1pp** | [-30.3, -13.2] pp |
-| HAGRID | 50/61 | 82.0% | 61/61 | **-18.0pp** | [-27.9, -8.8] pp |
-| RAGTruth | 558/623 | 89.6% | 623/623 | **-10.4pp** | [-13.7, -7.4] pp |
+| NQ | 58/69 | 84.1% | 69/69 | **−15.9pp** | [−25.4, −7.9] |
+| QAMPARI | 97/123 | 78.9% | 123/123 | **−21.1pp** | [−30.3, −13.2] |
+| HAGRID | 50/61 | 82.0% | 61/61 | **−18.0pp** | [−27.9, −8.8] |
+| RAGTruth | 558/623 | 89.6% | 623/623 | **−10.4pp** | [−13.7, −7.4] |
 
-A raw cited-anywhere rate of 79–90% on this variant is not evidence of anything. This is the
-sharpest single argument in the study for reporting attributable rather than raw rates, and it is
-the quantified form of an error the project made internally before the control existed:
-`cited_other` first showed 70–90% raw, which collapsed to 6–24% once the citation was required to
-be *for the planted claim* specifically.
+A raw cited-anywhere rate of 79–90% on this variant measures the sampling rule, not the model.
 
-### 4.4 A control-only observation worth reporting
+### 4.4 Span recovery is not evidence that planting worked
 
-`span_recovered` on the `random` control is 60–74% (mean 69%). The span is four words from the model's *own*
-clean answer to the *same* question, so it reappears whether or not anything was planted. **Span
-recovery is not evidence that planting worked.** This argues against Wallat's recovery-conditional
-denominator and in favour of the citation-coupled flag used here.
+On the `random` control, with nothing planted, the four words reappear in 60–74% of answers,
+because they come from the model's own answer to the same question. This is why the denominator
+is unconditional.
 
 ---
 
 ## 5. Results
 
-### 5.1 Primary — attributable post-rationalization, `rel_uncited`, baseline arm
+### 5.1 Baseline, primary variant (`rel_uncited`, `cite_aligned`)
 
 | dataset | planted k/n | rate | control k/n | attributable | 95% CI |
 |---|---|---|---|---|---|
-| NQ | 52/371 | 14.0% | 0/371 | **+14.0pp** | [+10.4, +17.8] pp |
-| QAMPARI | 29/319 | 9.1% | 0/319 | **+9.1pp** | [+6.2, +12.0] pp |
-| HAGRID | 64/433 | 14.8% | 0/433 | **+14.8pp** | [+11.8, +18.2] pp |
-| RAGTruth | 25/864 | 2.9% | 0/864 | **+2.9pp** | [+1.8, +3.9] pp |
+| NQ | 52/371 | 14.0% | 0/371 | **+14.0pp** | [+10.4, +17.8] |
+| QAMPARI | 29/319 | 9.1% | 0/319 | **+9.1pp** | [+6.2, +12.0] |
+| HAGRID | 64/433 | 14.8% | 0/433 | **+14.8pp** | [+11.8, +18.2] |
+| RAGTruth | 25/864 | 2.9% | 0/864 | **+2.9pp** | [+1.8, +3.9] |
 
-Pooled across datasets, cluster-weighted, **exploratory** (no pooling rule was pre-specified):
-**+10.7pp**.
+On the Wikipedia-based datasets this is **9–15% of probed claims**. Across all four datasets it is
+**8.6%** of the baseline's probed claims (170/1,987, 95% CI [7.4, 9.8], resampling questions
+within each dataset). This pooled figure is exploratory, as pooling was not pre-specified.
 
-Attributable rate for every arm on the primary variant (control is 0/n in all sixteen cells,
-so these equal the planted rates):
+Attributable rate for every model (the control is 0/n in all twenty cells, so these equal the
+planted rates):
 
-| dataset | baseline | search_r1 | research | rsearch |
+| dataset | baseline | search_r1 | research | rsearch | search_sft |
+|---|---|---|---|---|---|
+| NQ | 52/371 = **14.0** | 36/281 = **12.8** | 50/355 = **14.1** | 57/387 = **14.7** | 70/395 = **17.7** |
+| QAMPARI | 29/319 = **9.1** | 38/283 = **13.4** | 25/332 = **7.5** | 43/352 = **12.2** | 46/354 = **13.0** |
+| HAGRID | 64/433 = **14.8** | 53/383 = **13.8** | 59/434 = **13.6** | 80/430 = **18.6** | 56/403 = **13.9** |
+| RAGTruth | 25/864 = **2.9** | 29/699 = **4.1** | 30/823 = **3.6** | 52/879 = **5.9** | 43/813 = **5.3** |
+
+### 5.2 Difference from the baseline (DiD, pp)
+
+Each cell is the DiD, with a 95% CI and the p-value in parentheses. The RL agents (family A) are
+Holm-adjusted within each dataset. Search-SFT (family B) is a single comparison, so its p-value
+is unadjusted.
+
+| dataset | search_r1 | research | rsearch | search_sft |
 |---|---|---|---|---|
-| NQ | 52/371 = **+14.0pp** | 36/281 = **+12.8pp** | 50/355 = **+14.1pp** | 57/387 = **+14.7pp** |
-| QAMPARI | 29/319 = **+9.1pp** | 38/283 = **+13.4pp** | 25/332 = **+7.5pp** | 43/352 = **+12.2pp** |
-| HAGRID | 64/433 = **+14.8pp** | 53/383 = **+13.8pp** | 59/434 = **+13.6pp** | 80/430 = **+18.6pp** |
-| RAGTruth | 25/864 = **+2.9pp** | 29/699 = **+4.1pp** | 30/823 = **+3.6pp** | 52/879 = **+5.9pp** |
+| NQ | −1.2 [−6.2, 3.9] (1.000) | +0.1 [−3.9, 4.3] (1.000) | +0.7 [−3.9, 5.1] (1.000) | +3.7 [−1.1, 8.4] (0.133) |
+| QAMPARI | +4.3 [−0.5, 9.7] (0.267) | −1.6 [−5.1, 2.3] (0.415) | +3.1 [−1.4, 7.3] (0.324) | +3.9 [−0.6, 8.2] (0.081) |
+| HAGRID | −0.9 [−4.9, 3.2] (1.000) | −1.2 [−4.9, 2.5] (1.000) | +3.8 [−0.3, 8.0] (0.234) | −0.9 [−4.9, 3.2] (0.666) |
+| RAGTruth | +1.3 [−0.5, 3.0] (0.334) | +0.8 [−0.7, 2.2] (0.334) | **+3.0 [1.2, 4.8] (0.002)** | **+2.4 [0.5, 4.4] (0.011)** |
 
-### 5.2 RQ1 — difference-in-differences vs baseline, `rel_uncited`, Holm within dataset
+Each of the four per-dataset differences averaged, weighted by number of questions (exploratory):
+- search_r1 +0.5
+- research −0.5
+- rsearch +2.7
+- search_sft +2.2
 
-| dataset | search_r1 | research | rsearch |
-|---|---|---|---|
-| NQ | -1.2pp (1.000) | +0.1pp (1.000) | +0.7pp (1.000) |
-| QAMPARI | +4.3pp (0.267) | -1.6pp (0.415) | +3.1pp (0.324) |
-| HAGRID | -0.9pp (1.000) | -1.2pp (1.000) | +3.8pp (0.234) |
-| RAGTruth | +1.3pp (0.334) | +0.8pp (0.334) | **+3.0pp** (0.002) |
-
-Pooled (exploratory): search_r1 +0.5pp · research -0.5pp ·
-rsearch +2.7pp.
-
-### 5.3 Same, on `random`
+### 5.3 RL agents vs Search-SFT (family C, exploratory, Holm within dataset)
 
 | dataset | search_r1 | research | rsearch |
 |---|---|---|---|
-| NQ | -1.9pp (0.984) | -1.8pp (0.984) | -0.4pp (0.984) |
-| QAMPARI | +1.3pp (0.379) | +3.4pp (0.114) | +3.8pp (0.114) |
-| HAGRID | +1.0pp (0.561) | +3.0pp (0.182) | +4.2pp (0.081) |
-| RAGTruth | +0.8pp (0.594) | +0.2pp (0.764) | +1.8pp (0.063) |
+| NQ | −4.9 (0.165) | −3.6 (0.248) | −3.0 (0.248) |
+| QAMPARI | +0.4 (1.000) | **−5.5 (0.039)** | −0.8 (1.000) |
+| HAGRID | −0.1 (1.000) | −0.3 (1.000) | +4.7 (0.126) |
+| RAGTruth | −1.1 (0.658) | −1.6 (0.270) | +0.6 (0.658) |
 
-### 5.4 `cited_other`, claim-aligned outcome
+On `random`, all twelve of these differences are at most +0.1pp and none is significant after
+correction.
 
-| dataset | planted k/n | rate | control k/n | attributable | 95% CI |
-|---|---|---|---|---|---|
-| NQ | 9/69 | 13.0% | 0/69 | **+13.0pp** | [+5.5, +22.5] pp |
-| QAMPARI | 16/123 | 13.0% | 0/123 | **+13.0pp** | [+7.3, +19.7] pp |
-| HAGRID | 12/61 | 19.7% | 0/61 | **+19.7pp** | [+10.8, +31.3] pp |
-| RAGTruth | 67/623 | 10.8% | 1/623 | **+10.6pp** | [+7.9, +13.5] pp |
+### 5.4 The same comparison with the baseline, on `random`
 
-### 5.5 All cells, original `flag`, for continuity with the pre-control analysis
+| dataset | search_r1 | research | rsearch | search_sft |
+|---|---|---|---|---|
+| NQ | −1.9 (0.984) | −1.8 (0.984) | −0.4 (0.984) | +2.6 (0.201) |
+| QAMPARI | +1.3 (0.379) | +3.4 (0.114) | +3.8 (0.114) | **+4.4 (0.014)** |
+| HAGRID | +1.0 (0.561) | +3.0 (0.182) | +4.2 (0.081) | **+4.8 (0.018)** |
+| RAGTruth | +0.8 (0.594) | +0.2 (0.764) | +1.8 (0.063) | **+1.7 (0.045)** |
 
-| dataset | variant | baseline | search_r1 | research | rsearch |
-|---|---|---|---|---|---|
-| NQ | `random` | 42/371 = 11.3% | 24/281 = 8.5% | 34/355 = 9.6% | 37/387 = 9.6% |
-| NQ | `rel_uncited` | 51/371 = 13.7% | 36/281 = 12.8% | 51/355 = 14.4% | 56/387 = 14.5% |
-| NQ | `cited_other` | 11/69 = 15.9% | 6/41 = 14.6% | 10/48 = 20.8% | 8/34 = 23.5% |
-| QAMPARI | `random` | 14/319 = 4.4% | 18/283 = 6.4% | 25/332 = 7.5% | 31/352 = 8.8% |
-| QAMPARI | `rel_uncited` | 29/319 = 9.1% | 36/283 = 12.7% | 27/332 = 8.1% | 49/352 = 13.9% |
-| QAMPARI | `cited_other` | 14/123 = 11.4% | 28/128 = 21.9% | 17/123 = 13.8% | 16/90 = 17.8% |
-| HAGRID | `random` | 34/433 = 7.9% | 29/383 = 7.6% | 43/434 = 9.9% | 50/430 = 11.6% |
-| HAGRID | `rel_uncited` | 58/433 = 13.4% | 51/383 = 13.3% | 56/434 = 12.9% | 78/430 = 18.1% |
-| HAGRID | `cited_other` | 12/61 = 19.7% | 7/51 = 13.7% | 5/61 = 8.2% | 8/42 = 19.0% |
-| RAGTruth | `random` | 21/864 = 2.4% | 25/699 = 3.6% | 18/823 = 2.2% | 37/879 = 4.2% |
-| RAGTruth | `rel_uncited` | 26/864 = 3.0% | 28/699 = 4.0% | 29/823 = 3.5% | 51/879 = 5.8% |
-| RAGTruth | `cited_other` | 70/623 = 11.2% | 71/480 = 14.8% | 60/582 = 10.3% | 68/539 = 12.6% |
+### 5.5 `cited_other`, claim-aligned outcome (baseline)
+
+| dataset | planted k/n | control k/n | attributable | 95% CI |
+|---|---|---|---|---|
+| NQ | 9/69 | 0/69 | **+13.0pp** | [+5.5, +22.5] |
+| QAMPARI | 16/123 | 0/123 | **+13.0pp** | [+7.3, +19.7] |
+| HAGRID | 12/61 | 0/61 | **+19.7pp** | [+10.8, +31.3] |
+| RAGTruth | 67/623 | 1/623 | **+10.6pp** | [+7.9, +13.5] |
+
+### 5.6 What a flag means: two-rater check
+
+A flag says the citation moved to the doctored passage, not that the passage was wrong. Two raters
+independently labelled 100 flagged `rel_uncited` records: 5 per model and dataset, shown without
+model or dataset. One rater was a human annotator and the other an LLM. For each record they
+judged whether the doctored passage, **before planting**, supported the claim. Data are in
+`data/validation/`.
+
+| | human | LLM |
+|---|---|---|
+| no support | **73%** [64, 82] | **69%** [60, 78] |
+| partial support | 7% [2, 13] | 15% [8, 23] |
+| full support | 20% [12, 28] | 16% [9, 24] |
+| a correct original citation abandoned for an unsupporting passage | 58 / 100 | 52 / 100 |
+
+Agreement on the main question is 89/100, Cohen's κ = 0.76. Nine of the 11 disagreements are
+items the LLM called partial. A flag therefore measures **post-rationalization susceptibility**:
+how easily a citation moves. In about 70% of flagged cases it moves to a passage that does not
+support the claim.
 
 ---
 
 ## 6. Findings
 
-**Finding 1 — post-rationalization is common in every model, RL-trained or not, and it is
-attributable to the planting.** The pre-registered decision rule was: ≥ 8pp attributable with a CI
-excluding 0 on at least three of four datasets. Met — NQ **+14.0pp**, HAGRID **+14.8pp**, QAMPARI
-**+9.1pp**, RAGTruth **+2.9pp**, all CIs excluding 0. Roughly **one cited sentence in seven** on
-Wikipedia-domain QA attaches its citation to a passage whose only connection to the claim is a
-four-word string planted there. RAGTruth's much lower rate is itself informative: the effect is
-domain-dependent, and web-passage QA elicits far less of it than Wikipedia QA. This is the
-substantive positive result and is arguably more interesting than the arm comparison.
+**1. Post-rationalization is common in every model, RL-trained or not.** The pre-specified bar was
+at least 8pp attributable, with a CI excluding 0, on at least three of four datasets. It is met:
+NQ +14.0, QAMPARI +9.1, HAGRID +14.8 and RAGTruth +2.9, all CIs excluding 0. On Wikipedia-based
+QA, 9–15% of probed citations follow four planted words. RAGTruth's much lower rate shows the
+effect depends on the domain.
 
-**Finding 2 — no general RLVR effect.** Stated on the difference-in-differences, not the raw rate.
-Search-R1 (−1.2, +4.3, −0.9, +1.3 pp) and ReSearch (+0.1, −1.6, −1.2, +0.8 pp) straddle zero with
-no Holm-adjusted p below 0.23. Minimum detectable difference at 80% power is ≈ **+7pp**. The study
-rules out an RL effect of that size or larger; it cannot rule out ≈+3pp. **A bounded null, not a
-proof of absence.**
+**2. No general RLVR effect.** Search-R1 (−1.2, +4.3, −0.9, +1.3pp) and ReSearch (+0.1, −1.6,
+−1.2, +0.8pp) straddle zero, and no Holm-adjusted p is below 0.23. The minimum detectable
+difference at 80% power is about 7pp. The study rules out an effect of that size; it cannot rule
+out about 3pp. This is a bounded null.
 
-**Finding 3 — one checkpoint separates, consistently, in one direction.** R-Search's DiD on
-`rel_uncited` is positive on all four datasets (+0.7, +3.1, +3.8, **+3.0**) and Holm-significant on
-RAGTruth (**p = 0.002**), the largest and best-powered cell. That was the pre-registered survival
-condition and it is met. Three caveats, all now measured rather than asserted:
+**3. One RL agent drifts upward.** R-Search's DiD on `rel_uncited` is positive on all four
+datasets (+0.7, +3.1, +3.8, +3.0) and Holm-significant on RAGTruth (p = 0.002), which was the
+pre-specified condition. It weakens under the robustness checks:
+- On `random`, R-Search is positive on three of four datasets and significant on none.
+- Under `cite_anywhere`, it is −0.5pp on NQ and significant nowhere.
 
-- On `random` the same contrast is positive on three of four datasets (+4.2, +3.8, +1.8) and
-  −0.4 on NQ, and **Holm-significant on none** (closest 0.063).
-- Under the secondary `cite_anywhere` outcome on `rel_uncited`, R-Search is −0.5pp on NQ and
-  significant nowhere.
-- The four datasets are not four independent replications: one base model, one prompt, one scorer.
+**4. The drift is not specific to RL.** Search-SFT was never trained with RL, yet it sits above the
+baseline on three of four datasets and is significant on RAGTruth (+2.4pp, p = 0.011). Averaged
+over the datasets, its difference (+2.2pp) is close to R-Search's (+2.7pp). It is *more* robust
+than R-Search's: significant on three of four datasets on `random`, and on RAGTruth under
+`cite_anywhere`. No RL agent is reliably above Search-SFT; the only Holm-significant difference
+has an RL agent below it. The pre-specified reading applies: R-Search's drift is plausibly an
+effect of fine-tuning on search data, not of RL. HAGRID is the one dataset where R-Search stays
+above Search-SFT (+4.7pp, Holm p = 0.126).
 
-Stated carefully: *RLVR as a category shows no detectable effect on attributable
-post-rationalization; one GRPO checkpoint is positive on the primary variant across all four
-datasets and significant on the best-powered one, and that pattern weakens but does not reverse
-under a stricter variant and a looser outcome.* A pre-specified cross-dataset test is what would
-convert this into a defensible claim.
+### 6.1 Sensitivity: `cite_anywhere` on the primary variant
 
-### 6.1 Sensitivity — `cite_anywhere` on the primary variant
+The pre-specified trigger for this check was a between-model spread in the unaligned rate above
+5pp. It is crossed on NQ (8.0pp) and RAGTruth (6.6pp), so the analysis is repeated on
+`cite_anywhere`:
 
-Between-arm spread in the planted `unaligned` rate on `rel_uncited` is NQ 5.2pp, QAMPARI 2.2pp, HAGRID 0.9pp, RAGTruth 3.6pp; NQ crosses
-the pre-registered 5pp trigger, so the whole analysis was recomputed on `cite_anywhere`:
-
-| dataset | planted k/n | rate | control k/n | attributable | 95% CI |
+| dataset | baseline rate | search_r1 | research | rsearch | search_sft |
 |---|---|---|---|---|---|
-| NQ | 66/371 | 17.8% | 0/371 | **+17.8pp** | [+13.6, +22.1] pp |
-| QAMPARI | 42/319 | 13.2% | 0/319 | **+13.2pp** | [+9.5, +16.6] pp |
-| HAGRID | 72/433 | 16.6% | 0/433 | **+16.6pp** | [+13.5, +20.3] pp |
-| RAGTruth | 61/864 | 7.1% | 0/864 | **+7.1pp** | [+5.1, +9.1] pp |
+| NQ | 17.8% | −2.5 (1.000) | −0.6 (1.000) | −0.5 (1.000) | +3.2 (0.257) |
+| QAMPARI | 13.2% | +6.6 (0.102) | −1.7 (0.473) | +3.3 (0.460) | +3.5 (0.171) |
+| HAGRID | 16.6% | −1.0 (0.665) | −2.1 (0.586) | +3.1 (0.420) | −1.0 (0.655) |
+| RAGTruth | 7.1% | +3.4 (0.051) | +1.7 (0.224) | +2.3 (0.224) | **+4.3 (0.009)** |
 
-| dataset | search_r1 | research | rsearch |
-|---|---|---|---|
-| NQ | -2.5pp (1.000) | -0.6pp (1.000) | -0.5pp (1.000) |
-| QAMPARI | +6.6pp (0.102) | -1.7pp (0.473) | +3.3pp (0.460) |
-| HAGRID | -1.0pp (0.665) | -2.1pp (0.586) | +3.1pp (0.420) |
-| RAGTruth | +3.4pp (0.051) | +1.7pp (0.224) | +2.3pp (0.224) |
-
-Finding 1 is unaffected (if anything larger, every CI still excluding 0). Finding 2's null holds.
-Finding 3 is weaker: R-Search positive on three of four but −0.5pp on NQ and significant nowhere.
-The write-up must say so.
+Findings 1, 2 and 4 hold. Finding 3 is weaker.
 
 ---
 
-## 7. Contributions
+## 7. Relation to Wallat et al. (2025)
 
-1. **The first controlled measurement of citation post-rationalization under RLVR training** —
-   same base model, same corpus, same prompt, same deterministic scorer, four datasets.
-2. **A pre-registered, adversarially-reviewed null with a stated minimum detectable effect.**
-   Nulls are under-published; a bounded, powered, pre-specified one is a result, not a failure.
-3. **A quantification of baseline post-rationalization across four domains** — ~1 in 7 cited
-   sentences on Wikipedia QA, ~1 in 33 on web-passage QA — for a widely-deployed 7B instruct model.
-4. **A no-planting control for the post-rationalization probe, and an analysis of when it
-   matters.** Three results the original protocol could not have produced: (a) for two of three
-   injection variants the control is *degenerate by construction* — the injection appends rather
-   than substitutes, so the raw rate already is the attributable rate, and Wallat's headline
-   numbers are defensible for exactly that reason; (b) for the substituting variant the base rate
-   is real but small (0–0.9%); (c) under a "cited at all" rule the `cited_other` control is 100%
-   and the attributable effect is **negative**, so that raw rate measures the selection rule rather
-   than the model. The transferable lesson: *report the attributable rate, and where the control is
-   degenerate, demonstrate it rather than assume it.*
-5. **An open-source, single-GPU, dataset-agnostic faithfulness-probing framework.** Adding a
-   dataset is one registry entry. Wallat's original protocol required a 104B proprietary model with
-   a bespoke grounded-generation template; this runs on Kaggle's free tier.
-6. **A negative methodological result**: an attribution probe defined by lexical overlap between
-   claim and cited chunk is self-confounding when the hypothesis under test is lexical matching.
-   The fix is documented with the bias measurements that motivated it.
+Wallat et al. report 57% (273/476) for their relevant-but-uncited condition, using Command R+
+(104B, 4-bit) on NQ. That number is not comparable to ours, for four reasons:
+- A cited span could cite several passages, and success needed only that the doctored passage be
+  *among* them.
+- The target passage was one the model itself had marked relevant.
+- The plant was the model's whole cited span.
+- The rate counts only answers in which the exact span came back.
+
+Scored their way (span reappears, doctored passage cited anywhere), our baseline's NQ rate rises
+from 14.0% to 17.2%. The scoring rule explains only a few points of the gap. The paper's Appendix
+I compares the two setups side by side.
 
 ---
 
 ## 8. Limitations
 
-Stated in the write-up, not buried.
-
-1. **Format mismatch (open).** The three RL arms are agentic multi-turn search models trained to
-   emit `<search>`/`<information>`/`<answer>` sequences with retrieval in the loop. They are
-   evaluated here single-turn, with fixed pre-retrieved passages, in a plain cite-with-`[N]` format
-   they were never trained on. Search-R1's 24–52% abstention is plausibly *breakage* rather than
-   behaviour. The arms are not exchangeable under this prompt, and a format mismatch that degrades
-   instruction-following could equally **mask a real effect or manufacture a spurious one**.
-2. **Construct validity is assumed, not validated (open — the highest-risk item).** The inferential
-   leap — *the model cited a passage whose real content is unrelated, therefore it is
-   token-matching rather than comprehending* — is inherited from Wallat. An alternative reading
-   exists for every flagged instance: the prompt says "answer using ONLY the numbered passages",
-   the statement **is** in that passage, and citing it is literal compliance with an adversarially
-   corrupted input. **No human has annotated a single flagged instance.**
-3. **No SFT control arm (open).** Each RL arm differs from the baseline in three ways: it was
-   fine-tuned at all, fine-tuned on retrieval-QA data, and fine-tuned with RL. Nothing isolates the
-   third. Without it, RQ1 is associational.
-4. **Training-data overlap (mitigated).** Search-R1 is trained on NQ train and evaluated on
-   KILT-NQ. The three added datasets are OOD for all three RL arms — and notably the one consistent
-   effect (R-Search) is *strongest off* NQ, which cuts against contamination as its explanation.
-   The overlap is not yet quantified.
-5. **Exact-substring span recovery (bounded).** Misses paraphrase, and the miss may differ by arm.
-   Diagnostic: `cited & not recovered` is 1–4% of the `random` and `rel_uncited` cells and
-   comparable across arms, so it is unlikely to mask a differential effect; it is material on
-   `cited_other`.
-6. **Fixed injection position (open).** The span is always appended at the end of the chunk, so
-   positional citation bias is fully confounded with the treatment.
-7. **`cited_other` is under-powered except on RAGTruth** — 13–43 clusters on the other three
-   datasets, below the ~30 the cluster-robust estimator needs, so its SEs are unreliable there.
-8. **HAGRID distractors are not a uniform sample** — drawn via a streaming shuffle over
-   `miracl/miracl-corpus`, which samples from a buffer and a shuffled shard order. Fine for
-   topically-unrelated noise; the write-up must not claim uniformity.
-9. **Generalizability.** Three RL checkpoints from one narrow family of agentic-search work
-   published within months of each other; one base model family; English only; one prompt; one
-   decoding setting. Citation behaviour is well documented as prompt-sensitive, so this is a
-   property of *this prompt* until a sensitivity analysis says otherwise.
-10. **~~No version control~~ (closed).** Now in git; `runs/` (raw data) is hosted separately on
-    Google Drive rather than tracked in the repo — see the project README.
+1. **Format mismatch.** The RL agents and Search-SFT were trained for multi-turn search in their
+   own formats, and are evaluated single-turn on fixed passages with `[N]` citations. The large
+   spread in abstention (14–52%) may partly reflect this. It could mask a real effect or create a
+   spurious one.
+2. **One SFT reference, not matched data.** Search-SFT is a single checkpoint trained on
+   o3-written trajectories. It shares Search-R1's questions but not its data or trainer. A matched
+   SFT/RL pair trained on identical data remains the cleanest test.
+3. **What a flag means.** About 70% of flags move to a non-supporting passage (two raters, §5.6).
+   In the rest, citing the doctored passage could be read as obedience to "answer from the
+   passages". One of the two raters was an LLM.
+4. **Training-data overlap.** Search-R1 and Search-SFT were trained on NQ questions. The other
+   three datasets are out of domain, and R-Search's pattern is strongest away from NQ. The overlap
+   is not quantified.
+5. **Exact-substring span recovery.** This misses paraphrase. `cited & not recovered` is 1–4% of
+   the `random` and `rel_uncited` cells and similar across models.
+6. **Fixed injection position.** The span is always appended at the end of the passage, so any
+   positional citation bias is mixed in with the treatment.
+7. **`cited_other` is underpowered except on RAGTruth.** It has only 13–43 question clusters on
+   the other three datasets.
+8. **HAGRID distractors are not a uniform sample.** They are drawn by a streaming shuffle over
+   `miracl/miracl-corpus`.
+9. **Scope.** Three RL agents from one line of work and one SFT model, one base model, English
+   only, one prompt, one decoding setting.
 
 ---
 
-## 9. What is next
-
-The project is at a fork. **A** and **B** are not exclusive, and B does not depend on A.
-
-### Path A — the SFT control arm (closes limitation 8.3)
-
-The last thing standing between this and a causal claim about RL.
-
-- **A1.** Look for a public SFT-on-the-same-data checkpoint from any of the three RL projects
-  first. If none exists, LoRA-SFT `Qwen2.5-7B-Instruct` on the same NQ/HotpotQA mixture is
-  feasible on Kaggle free tier at 7B with 4-bit + LoRA — but it is a real training job on a
-  platform built for inference, and is the single largest new risk in the project.
-- **A2.** Run it through the existing pipeline unchanged: one entry in `pipeline/config.py`, one
-  arm in the notebook generators, 8 GPU kernel runs (planted + control × 4 datasets), ~10 h.
-  Nothing in stages 03/05/05b changes.
-- **A3.** Re-run the DiD with SFT as the reference arm as well as baseline. The interesting
-  quantity becomes `attributable(RL) − attributable(SFT)`.
-- **Honest prior:** if the SFT arm lands between baseline and the RL arms, R-Search's effect is
-  probably "fine-tuning on retrieval data", not "RL". That is publishable either way, and it is the
-  first thing a reviewer will ask for.
-- **If A1 fails**, RQ1 must be re-scoped *in writing* to "do released RLVR search checkpoints
-  exhibit more attributable citation faking than their base model" — associational, honest, still
-  publishable. Draft that re-scope now, not after a failed attempt.
-
-### Path B — write the paper
-
-The claim set is already coherent: a pre-registered, controlled, four-dataset measurement of
-attributable post-rationalization; a bounded null on RLVR; one checkpoint-level exception that
-survives its pre-specified test; and a methodological contribution about controls that transfers
-beyond this probe.
-
-- **B1. Human validation of the construct — the only remaining blocker.** Stratified annotation of
-  200–300 flagged and unflagged instances, reporting agreement between the automatic flag and human
-  judgement. The control settled *whether the rate is attributable to the planting*; it says nothing
-  about *whether the flag measures post-rationalization at all*. Annotator time, no compute.
-  **Do this before submitting anywhere.**
-- **B2. Pre-specified cross-dataset test of the R-Search effect.** Converts four same-signed
-  estimates into a claim or retires it. No new runs — declare the test, then run it.
-- **B3. Format sensitivity.** At minimum report per-arm instruction-following compliance as a
-  covariate; the abstention spread (15–52%) is large enough that a reviewer will raise it.
-- **B4. Quantify NQ contamination** for the RL checkpoints against their training splits. No GPU.
-- **B5. Venue.** The reproducibility framing is the strongest angle: ECIR's reproducibility track
-  and TMLR's reproducibility certification both explicitly reward "new insight that emerged from
-  reproduction which was not reported in the original paper", which is exactly §7.4. ICTIR is where
-  Wallat et al. published and is a strong direct fit. Student Research Workshops at ACL/NAACL/EMNLP
-  are designed for solo thesis-stage authors. A findings- or workshop-length version of RQ1 alone
-  is the de-risking fallback.
-
-### Deferred
-
-- **Randomize injection position** — the last unaddressed design confound, smaller than the SFT
-  gap, and it costs another 16–48 kernel runs.
-- **RQ2 / inference-time repair (RARR-style)** — the second half of the thesis. Gated on B1: an
-  imperfect verifier flattens resampling gains (Stroebl et al.), so the flag's validity is a
-  prerequisite, not an optional extra.
-
----
-
-## 10. Numbers a paper or proposal can quote
+## 9. Numbers to quote
 
 | quantity | value |
 |---|---|
 | Datasets | 4 (KILT-NQ, ALCE-QAMPARI, HAGRID, RAGTruth-QA) |
 | Questions per dataset | 500 (NQ: 499) |
-| Model arms | 4, all sharing `Qwen2.5-7B-Instruct` |
-| Adversarial variants | 3 (`random`, `rel_uncited`, `cited_other`) |
-| Kaggle GPU kernel runs | **48** (32 main + 16 control) |
-| Scored records | **36,690** (18,345 planted + 18,345 control) |
-| Control records newly generated on GPU | 7,625 (`random`); the other 10,720 derived exactly |
-| Attributable rate, baseline, `rel_uncited` | **+14.0 / +9.1 / +14.8 / +2.9 pp** (NQ / QAMPARI / HAGRID / RAGTruth) |
-| Pooled attributable baseline rate (exploratory) | **+10.7pp** |
-| No-planting control base rate, `random` | 0 in 7 of 16 cells; 0.1–0.9% in the rest |
-| Share of the raw `random` rate that is attributable | 83–100%, mean 97% |
-| Only Holm-significant RLVR contrast | R-Search, RAGTruth, `rel_uncited`, DiD **+3.0pp**, Holm **p = 0.002** |
-| `cited_other` raw cited-anywhere rate vs its control | 79–90% vs **100%** — attributable effect negative |
-| Agreement, original flag vs `cite_aligned` | 92.2–99.6% |
-| Minimum detectable difference at 80% power | ≈ +7pp on `rel_uncited` |
-| Corpus chunks indexed | 40,791 / 44,879 / 8,986 / 6,981 |
-| Compute | free-tier Kaggle only — 2×T4 or 1×P100, 2 concurrent sessions |
+| Models | 5, all from `Qwen2.5-7B-Instruct` (3 RLVR, 1 SFT, base) |
+| Probe variants | 3 (`random`, `rel_uncited`, `cited_other`) |
+| Kaggle GPU jobs | 60 |
+| Scored records | 45,744 (22,872 planted + 22,872 control) |
+| Control records run on GPU / derived exactly | 9,590 (`random`) / 13,282 |
+| Baseline attributable rate, `rel_uncited` | +14.0 / +9.1 / +14.8 / +2.9 pp (NQ / QAMPARI / HAGRID / RAGTruth) |
+| Baseline, share of probed claims across all four datasets (exploratory) | 8.6% (170/1,987), 95% CI [7.4, 9.8] |
+| `random` control base rate | 0.2% (19/9,590); 0 in 9 of 20 cells |
+| Holm-significant differences from the baseline | R-Search, RAGTruth, +3.0pp (p = 0.002); Search-SFT, RAGTruth, +2.4pp (p = 0.011, single comparison) |
+| Flag check, two raters | agreement 89/100, κ = 0.76; no support before planting 73% (human), 69% (LLM) |
+| Minimum detectable difference at 80% power | about 7pp on `rel_uncited` |
+| Compute | free-tier Kaggle GPUs; fp16, no quantization; P100 (base and RL models), T4 ×2 (Search-SFT) |
 
 ---
 
-## 11. References
+## 10. References
 
-- **Wallat, Zhang, Anand (2025)**, "Correctness is not Faithfulness in RAG Attributions" —
-  arXiv:2412.18004, ICTIR 2025 (DOI 10.1145/3731120.3744592). *Core methodology source.*
-  Repo: https://github.com/jwallat/RAG-attributions (vendored read-only at `reference/`).
-- **Search-R1** — arXiv:2503.09516 · **ReSearch** — arXiv:2503.19470 ·
-  **R-Search** — arXiv:2506.04185. *The three RL checkpoints under test.*
-- **R1-Searcher** — arXiv:2503.05592 · **RAG-R1** — arXiv:2507.02962. *Considered and excluded.*
-- **VERITAS**, "Beyond Correctness: Rewarding Faithful Reasoning in RAG" — arXiv:2510.13272.
-  Shows RLVR search agents have degraded *reasoning-chain* faithfulness — a different construct
-  from citation-to-evidence attribution. Reviewers will conflate the two; address it head-on.
-- **VeriCite** — arXiv:2510.11394 · **CiteFix** — arXiv:2504.15629. Closest adjacent
-  inference-time citation-repair baselines; neither compares against RLVR-trained agents.
-- **"Do LLM Attribution Metrics Transfer?"** — arXiv:2606.23915. Off-the-shelf NLI attribution
-  scorers don't transfer across datasets, which is why the scorer here is deterministic string
-  matching and why human validation is a prerequisite.
-- **RARR** (Gao et al. 2023) — arXiv:2210.08726, ACL 2023. *The model for RQ2's repair method.*
-- **Snell et al. 2024** — arXiv:2408.03314 · **Brown et al. 2024** — arXiv:2407.21787 ·
-  **Stroebl et al. 2024** — arXiv:2411.17501. *Inference-time compute: the case for RQ2, and the
-  caveat that imperfect verifiers flatten resampling gains.*
-- **Xiong et al. 2025** — arXiv:2504.11343. Backs "cheap methods recover most of RL's benefit".
-
-Novelty was last adversarially checked against the literature with RQ1 and RQ2 both OPEN. That
-check has a shelf life — the field moves monthly. Re-check before any submission.
+- **Wallat, Heuss, de Rijke, Anand (2025)**, "Correctness is not Faithfulness in Retrieval
+  Augmented Generation Attributions", ICTIR 2025, arXiv:2412.18004. Code:
+  https://github.com/jwallat/RAG-attributions
+- **Search-R1** arXiv:2503.09516 · **ReSearch** arXiv:2503.19470 · **R-Search** arXiv:2506.04185.
+  The three RLVR checkpoints.
+- **SkillRL** arXiv:2602.08234. Source of the Search-SFT checkpoint.
+- **SimpleDeepSearcher** arXiv:2505.16834. SFT candidate, dropped at the gate.
+- **R1-Searcher** arXiv:2503.05592 · **RAG-R1** arXiv:2507.02962. Considered and excluded.
+- **VERITAS** arXiv:2510.13272. Faithfulness within the reasoning chain of search agents, a
+  different construct from citation-to-evidence attribution.

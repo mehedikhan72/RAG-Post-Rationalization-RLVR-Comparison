@@ -71,8 +71,23 @@ DATASETS = {
 
 KAGGLE_USER = "mehedikhan72"
 
-ARM_ORDER = ["baseline", "search_r1", "research", "rsearch"]
+ALL_ARMS = ["baseline", "search_r1", "research", "rsearch", "search_sft"]
+# Arms removed by the go/no-go gate (an arm is dropped if fewer than 30% of questions get a
+# format-compliant answer on 2+ datasets). They stay in ALL_ARMS for the record; no stage past
+# 02 builds, uploads or scores them. Empty in the reported study.
+DROPPED_ARMS = []
+ARM_ORDER = [a for a in ALL_ARMS if a not in DROPPED_ARMS]
 VARIANTS = ["random", "rel_uncited", "cited_other"]
+
+# Contrasts are grouped into families and Holm runs within each family separately, so adding
+# arms never moves an existing p-value. Each entry is (reference arm, arms compared against it).
+RL_ARMS = ["search_r1", "research", "rsearch"]
+SFT_ARMS = ["search_sft"]
+CONTRAST_FAMILIES = {
+    "A": ("baseline", RL_ARMS),       # RL vs base -- the primary comparison
+    "B": ("baseline", [a for a in SFT_ARMS if a not in DROPPED_ARMS]),  # SFT vs base
+    "C": ("search_sft", RL_ARMS),     # RL vs SFT -- exploratory
+}
 
 # The no-planting control (W2). `planted` is the archived stage-04 condition; `control` is the
 # same context with the appended span removed. Both are scored by one function in 05b.

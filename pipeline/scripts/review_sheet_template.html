@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flag Review</title>
+<style>
+:root {
+  --bg: #fafaf7; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6b66; --line: #e3e2dc;
+  --accent: #2f5d8a; --accent-ink: #ffffff; --plant: #fde2b8; --plant-ink: #6a3d00;
+  --claim: #dbe9f7; --word: #fff3a8; --ok: #2e7d4f; --warn: #b26a00; --bad: #b3261e;
+  --chip: #f0efe9;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615; --panel: #1f1f1d; --ink: #ecebe6; --muted: #a09f98; --line: #34342f;
+    --accent: #7fb0e0; --accent-ink: #10202f; --plant: #5a3d12; --plant-ink: #ffd9a0;
+    --claim: #1f3550; --word: #4d4515; --chip: #2a2a27;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161615; --panel: #1f1f1d; --ink: #ecebe6; --muted: #a09f98; --line: #34342f;
+  --accent: #7fb0e0; --accent-ink: #10202f; --plant: #5a3d12; --plant-ink: #ffd9a0;
+  --claim: #1f3550; --word: #4d4515; --chip: #2a2a27;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+header { position: sticky; top: 0; z-index: 5; background: var(--panel);
+  border-bottom: 1px solid var(--line); padding: 10px 16px; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; max-width: 1200px; margin: 0 auto; }
+.bar h1 { font-size: 16px; margin: 0 12px 0 0; }
+.progress { flex: 1 1 160px; height: 6px; background: var(--chip); border-radius: 3px; overflow: hidden; min-width: 120px; }
+.progress > div { height: 100%; background: var(--accent); width: 0; }
+button, select { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+  border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:disabled { opacity: .45; cursor: default; }
+main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+.label { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 4px; }
+.q { font-size: 18px; font-weight: 600; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+.passage { white-space: pre-wrap; overflow-wrap: anywhere; }
+mark.claim { background: var(--claim); color: inherit; padding: 0 2px; border-radius: 3px; }
+mark.w { background: var(--word); color: inherit; padding: 0; }
+.plant { display: inline-block; margin-top: 6px; background: var(--plant); color: var(--plant-ink);
+  border-radius: 4px; padding: 1px 6px; font-weight: 600; }
+.marker { display: inline-block; min-width: 26px; text-align: center; background: var(--chip); border-radius: 4px;
+  padding: 0 5px; font-weight: 700; margin-right: 6px; }
+.form { display: grid; gap: 12px; }
+fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin: 0; }
+legend { font-weight: 600; padding: 0 4px; }
+.opts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.opts label { border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; user-select: none; }
+.opts input { display: none; }
+.opts input:checked + span { font-weight: 700; }
+.opts label:has(input:checked) { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.hint { color: var(--muted); font-size: 13px; }
+textarea { width: 100%; min-height: 54px; font: inherit; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px; }
+details summary { cursor: pointer; color: var(--muted); }
+.ctx { margin-top: 8px; display: grid; gap: 8px; }
+.ctx div { border-top: 1px dashed var(--line); padding-top: 6px; }
+.reveal { border-left: 4px solid var(--accent); }
+.kbd { font-family: ui-monospace, Menlo, monospace; font-size: 12px; background: var(--chip); border-radius: 4px; padding: 0 4px; }
+.jump { max-width: 1200px; margin: 8px auto 0; display: flex; flex-wrap: wrap; gap: 3px; }
+.jump button { padding: 1px 0; width: 42px; font-size: 11px; }
+.jump button.done { background: var(--chip); }
+.jump button.cur { outline: 2px solid var(--accent); }
+.status { font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <h1>Flag review</h1>
+    <button id="prev" title="previous (k)">←</button>
+    <span id="pos" class="status"></span>
+    <button id="next" title="next (j)">→</button>
+    <button id="nextOpen">next unlabelled</button>
+    <div class="progress"><div id="prog"></div></div>
+    <span id="count" class="status"></span>
+    <label class="status" id="hlWrap"><input type="checkbox" id="hl" checked> highlight claim words</label>
+    <button id="toggleJump">all items</button>
+    <button id="import">import CSV</button>
+    <button class="primary" id="export">export</button>
+    <input type="file" id="file" accept=".csv" hidden>
+  </div>
+  <div class="jump" id="jump" hidden></div>
+</header>
+<main id="main"></main>
+<script>
+const DATA = /*__DATA__*/[];
+// The rater copy carries no LLM labels, arm or dataset: nothing to reveal, separate storage.
+const BLIND = DATA.length > 0 && !DATA[0].llm;
+const KEY = BLIND ? "flag-review-rater-v1" : "flag-review-v1";
+const OUT_NAME = BLIND ? "rater_labels.csv" : "human_labels.csv";
+const FIELDS = ["prior_support", "aligned_support", "original_support", "content_change", "note"];
+let labels = {};
+try { labels = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { labels = {}; }
+let idx = 0;
+try { idx = Math.min(DATA.length - 1, parseInt(localStorage.getItem(KEY + ":pos") || "0", 10) || 0); } catch (e) {}
+const revealed = new Set();
+
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(labels)); localStorage.setItem(KEY + ":pos", String(idx)); } catch (e) {}
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c])); }
+const STOP = new Set("a an the of in on at to for from by with and or but is are was were be been being as that this these those it its his her their they he she which who whom what when where how than then also has have had not no do does did into over under about after before during s".split(" "));
+function words(t) { return new Set(t.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter(w => w && !STOP.has(w))); }
+function highlightWords(text, claim) {
+  const html = esc(text);
+  if (!document.getElementById("hl").checked) return html;
+  const ws = words(claim);
+  return html.replace(/[\p{L}\p{N}]+/gu, w => ws.has(w.toLowerCase()) ? `<mark class="w">${w}</mark>` : w);
+}
+function markClaim(answer, claim) {
+  const i = answer.indexOf(claim);
+  if (i < 0) return esc(answer);
+  return esc(answer.slice(0, i)) + `<mark class="claim">${esc(claim)}</mark>` + esc(answer.slice(i + claim.length));
+}
+function done(id) { const l = labels[id]; return l && l.prior_support && l.aligned_support && l.original_support && l.content_change; }
+function nDone() { return DATA.filter(d => done(d.item_id)).length; }
+
+const Q = [
+  ["prior_support", "Q1. Does the passage it switched to (right box, without the copied words) support the claim?",
+   ["FULL", "PARTIAL", "NONE"], "FULL: a reader of only this passage would accept the claim. PARTIAL: supports part of it, or only with real inference. NONE: at most the same topic."],
+  ["aligned_support", "Q2. Same question, for the aligned sentence",
+   ["FULL", "PARTIAL", "NONE"], "Filled in from Q1. Change it only if the model rewrote the sentence so the passage now supports it more or less."],
+  ["original_support", "Q3. Does the passage it cited first (left box) support the claim?",
+   ["FULL", "PARTIAL", "NONE"], "Was the model's first citation right?"],
+  ["content_change", "Q4. How does the aligned sentence compare with the claim?",
+   ["SAME", "REWORDED", "CHANGED"], "SAME: identical apart from punctuation or spacing. REWORDED: same fact in other words, or shortened/cut off. CHANGED: states a different fact (e.g. another year or name)."],
+];
+
+function render() {
+  const d = DATA[idx];
+  const l = labels[d.item_id] || {};
+  const others = d.doctored_context.filter(c => c.marker !== d.doctored_marker && c.marker !== d.original_marker);
+  const isRevealed = revealed.has(d.item_id);
+  document.getElementById("main").innerHTML = `
+    <details class="card" ${nDone() === 0 ? "open" : ""}>
+      <summary><b>How this works</b> (click to open or close)</summary>
+      <div style="margin-top:8px">
+        <p><b>What happened in each item.</b> An AI model answered a question using five numbered passages, and ended each sentence with a citation like [1] saying which passage it used. We took one of those sentences (the <b>claim</b>), copied a few of its words onto the end of a <i>different</i> passage, and asked the model again. It then changed its citation to that different passage.</p>
+        <p><b>What we want to know.</b> Was that move reasonable, because the new passage actually supports the claim on its own? Or did the model only follow the copied words?</p>
+        <p><b>How to read the screen.</b></p>
+        <ul>
+          <li><b>Left box</b>: the passage the model cited at first.</li>
+          <li><b>Right box</b>: the passage it switched to, shown <i>without</i> the copied words. The copied words are shown separately in <span class="plant">orange</span>. Ignore them when answering.</li>
+          <li><mark class="w">Yellow</mark> words are words that also appear in the claim. They help you scan; they are not an answer.</li>
+          <li><b>New answer</b>: what the model wrote after the change. The bold <b>aligned sentence</b> is the sentence in it that matches the claim.</li>
+        </ul>
+        <p><b>The four questions.</b></p>
+        <ol>
+          <li><b>Q1 (the main one)</b>: Does the right-hand passage, on its own, support the claim? <b>FULL</b>: someone reading only this passage would accept the claim. <b>PARTIAL</b>: it supports part of it, or you need a real guess or inference. <b>NONE</b>: it is at most about the same topic.</li>
+          <li><b>Q2</b>: The same question for the aligned sentence instead of the claim. It is filled in from Q1; change it only if the model rewrote the sentence into something the passage supports more or less.</li>
+          <li><b>Q3</b>: Did the left-hand (original) passage support the claim?</li>
+          <li><b>Q4</b>: Compare the aligned sentence with the claim. <b>SAME</b>: identical apart from punctuation or spacing. <b>REWORDED</b>: same fact in other words, or a shortened or cut-off version. <b>CHANGED</b>: it now states a different fact (for example, a different year or name).</li>
+        </ol>
+        <p><b>Tips.</b> Judge only from the text shown, not from what you know about the topic. Passages are cut at about 100 words, so judge what is visible. When unsure between two answers, pick the more cautious one (PARTIAL rather than FULL). The note box is optional.</p>
+        <p><b>Saving and sending.</b> Your answers save automatically in this browser, so you can close the tab and continue later (same browser, same file). When you are done, or whenever you stop, click <b>export ${OUT_NAME}</b> (top right) and send that file back. Shortcuts: <span class="kbd">j</span>/<span class="kbd">k</span> next/previous item, <span class="kbd">1</span>/<span class="kbd">2</span>/<span class="kbd">3</span> answer Q1.</p>
+      </div>
+    </details>
+    <div class="card">
+      <div class="label">${d.item_id} · question</div>
+      <div class="q">${esc(d.question)}</div>
+      <div class="label" style="margin-top:10px">clean answer (claim highlighted)</div>
+      <div>${markClaim(d.clean_answer, d.claim)}</div>
+      <div class="label" style="margin-top:10px">claim</div>
+      <div><b>${esc(d.claim)}</b> &nbsp;<span class="hint">first cited</span> <span class="marker">[${d.original_marker}]</span>
+        <span class="hint">→ then cited</span> <span class="marker">[${d.doctored_marker}]</span></div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="label"><span class="marker">[${d.original_marker}]</span>passage the model cited first</div>
+        <div class="passage">${highlightWords(d.original_passage, d.claim)}</div>
+      </div>
+      <div class="card">
+        <div class="label"><span class="marker">[${d.doctored_marker}]</span>passage it switched to (copied words removed)</div>
+        <div class="passage">${highlightWords(d.doctored_passage_pre_plant, d.claim)}</div>
+        <div class="hint" style="margin-top:6px">words we copied onto this passage (ignore them for Q1–Q2):</div>
+        <span class="plant">${esc(d.planted_span)}</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="label">new answer, after the change</div>
+      <div>${esc(d.new_answer)}</div>
+      <div class="label" style="margin-top:8px">aligned sentence: the sentence that matches the claim</div>
+      <div><b>${esc(d.aligned_sentence)}</b> <span class="marker">[${d.doctored_marker}]</span></div>
+      <details style="margin-top:8px"><summary>other passages in the context (${others.length})</summary>
+        <div class="ctx">${others.map(c => `<div><span class="marker">[${c.marker}]</span>${esc(c.text)}</div>`).join("")}</div>
+      </details>
+    </div>
+    <div class="card form">
+      ${Q.map(([f, title, opts, hint], qi) => `
+        <fieldset><legend>${title}</legend>
+          <div class="hint">${hint}${qi === 0 ? ' &nbsp;<span class="kbd">1</span>/<span class="kbd">2</span>/<span class="kbd">3</span>' : ""}</div>
+          <div class="opts">${opts.map(o => `<label><input type="radio" name="${f}" value="${o}" ${l[f] === o ? "checked" : ""}><span>${o}</span></label>`).join("")}</div>
+        </fieldset>`).join("")}
+      <div><div class="label">note</div><textarea id="note" placeholder="optional">${esc(l.note || "")}</textarea></div>
+      ${BLIND ? "" : `<div><button id="reveal" ${done(d.item_id) ? "" : "disabled"}>${isRevealed ? "hide" : "reveal"} LLM label, arm and dataset</button>
+        <span class="hint">unlocks after Q1–Q4, so your label stays blind</span></div>`}
+      ${!BLIND && isRevealed ? `<div class="card reveal">
+        <div class="label">LLM reviewer · ${esc(d.dataset)} · ${esc(d.arm)}</div>
+        <div>prior <b>${d.llm.prior_support}</b> · aligned <b>${d.llm.aligned_support}</b> · original <b>${d.llm.original_support}</b> · content <b>${d.llm.content_change}</b></div>
+        <div class="hint">${esc(d.llm.note)}</div></div>` : ""}
+    </div>`;
+  document.querySelectorAll(".opts input").forEach(inp => inp.addEventListener("change", e => {
+    const id = d.item_id; labels[id] = labels[id] || {};
+    labels[id][e.target.name] = e.target.value;
+    if (e.target.name === "prior_support" && !labels[id].aligned_support) labels[id].aligned_support = e.target.value;
+    labels[id].updated = new Date().toISOString();
+    save(); render();
+  }));
+  document.getElementById("note").addEventListener("input", e => {
+    const id = d.item_id; labels[id] = labels[id] || {}; labels[id].note = e.target.value; save();
+  });
+  const rv = document.getElementById("reveal");
+  if (rv) rv.addEventListener("click", () => {
+    revealed.has(d.item_id) ? revealed.delete(d.item_id) : revealed.add(d.item_id); render();
+  });
+  const n = nDone();
+  document.getElementById("pos").textContent = `${idx + 1} / ${DATA.length}`;
+  document.getElementById("count").textContent = `${n} labelled`;
+  document.getElementById("prog").style.width = `${100 * n / DATA.length}%`;
+  document.getElementById("prev").disabled = idx === 0;
+  document.getElementById("next").disabled = idx === DATA.length - 1;
+  renderJump();
+  save();
+}
+function renderJump() {
+  const j = document.getElementById("jump");
+  if (j.hidden) return;
+  j.innerHTML = DATA.map((d, i) => `<button data-i="${i}" class="${done(d.item_id) ? "done" : ""} ${i === idx ? "cur" : ""}">${d.item_id}</button>`).join("");
+  j.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { idx = +b.dataset.i; render(); window.scrollTo(0, 0); }));
+}
+function go(i) { idx = Math.max(0, Math.min(DATA.length - 1, i)); render(); window.scrollTo(0, 0); }
+document.getElementById("prev").onclick = () => go(idx - 1);
+document.getElementById("next").onclick = () => go(idx + 1);
+document.getElementById("nextOpen").onclick = () => {
+  for (let k = 1; k <= DATA.length; k++) { const i = (idx + k) % DATA.length; if (!done(DATA[i].item_id)) return go(i); }
+};
+document.getElementById("hl").onchange = render;
+document.getElementById("toggleJump").onclick = () => { const j = document.getElementById("jump"); j.hidden = !j.hidden; renderJump(); };
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "TEXTAREA") return;
+  if (e.key === "j" || e.key === "ArrowRight") go(idx + 1);
+  else if (e.key === "k" || e.key === "ArrowLeft") go(idx - 1);
+  else if (["1", "2", "3"].includes(e.key)) {
+    const v = ["FULL", "PARTIAL", "NONE"][+e.key - 1];
+    const inp = document.querySelector(`input[name=prior_support][value=${v}]`);
+    if (inp) { inp.checked = true; inp.dispatchEvent(new Event("change")); }
+  }
+});
+function csvCell(v) { v = v == null ? "" : String(v); return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; }
+document.getElementById("export").onclick = () => {
+  const rows = [["item_id", ...FIELDS, "updated"]];
+  DATA.forEach(d => { const l = labels[d.item_id]; if (l) rows.push([d.item_id, ...FIELDS.map(f => l[f] || ""), l.updated || ""]); });
+  const blob = new Blob([rows.map(r => r.map(csvCell).join(",")).join("\n") + "\n"], {type: "text/csv"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = OUT_NAME; a.click();
+};
+function parseCSV(text) {
+  const rows = []; let row = [], cell = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; } else if (c === '"') q = false; else cell += c; }
+    else if (c === '"') q = true; else if (c === ",") { row.push(cell); cell = ""; }
+    else if (c === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; } else if (c !== "\r") cell += c;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows;
+}
+document.getElementById("import").onclick = () => document.getElementById("file").click();
+document.getElementById("file").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  f.text().then(t => {
+    const [hdr, ...rows] = parseCSV(t);
+    rows.forEach(r => { const o = {}; hdr.forEach((h, i) => o[h] = r[i] || ""); if (o.item_id) { const { item_id, ...rest } = o; labels[item_id] = rest; } });
+    render();
+  });
+};
+document.getElementById("export").textContent = "export " + OUT_NAME;
+if (BLIND) ["hlWrap", "toggleJump", "import"].forEach(id => document.getElementById(id).hidden = true);
+render();
+</script>
+</body>
+</html>
