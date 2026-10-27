@@ -60,7 +60,7 @@ pip install -r requirements.txt   # only the Kaggle CLI, needed to push and pull
 ### A. Re-score from the released outputs (minutes, no GPU)
 
 Download `runs/` (generations, re-runs and retrieval corpora) into the repository root from
-https://drive.google.com/drive/folders/1BCPEJtvHYb9MIPiH1s2iaD2pcwLAiJ0A, then run:
+https://drive.google.com/drive/folders/1jp6zA-K8jdU4V2I9AoiLDU-70WnSN_R8, then run:
 
 ```
 for ds in nq qampari hagrid ragtruth; do
