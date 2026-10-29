@@ -163,7 +163,7 @@ filed with a public registry.
 treatment that differs by model. The breakdown into `P(recover)`, `P(flag | recover)` and
 `P(flag)` is reported alongside.
 
-*Why clusters:* one question yields up to 7 claims (11 on RAGTruth) sharing a context and an
+*Why clusters:* one question can yield up to 11 claims sharing a context and an
 answer, so treating claims as independent would understate the uncertainty.
 
 ### 3.1 Two outcomes
@@ -377,7 +377,7 @@ over the datasets, its difference (+2.2pp) is close to R-Search's (+2.7pp). It i
 than R-Search's: significant on three of four datasets on `random`, and on RAGTruth under
 `cite_anywhere`. No RL agent is reliably above Search-SFT; the only Holm-significant difference
 has an RL agent below it. The pre-specified reading applies: R-Search's drift is plausibly an
-effect of fine-tuning on search data, not of RL. HAGRID is the one dataset where R-Search stays
+effect of fine-tuning on search data, not of RL. Only on HAGRID is R-Search well
 above Search-SFT (+4.7pp, Holm p = 0.126).
 
 ### 6.1 Sensitivity: `cite_anywhere` on the primary variant
